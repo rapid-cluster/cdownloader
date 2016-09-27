@@ -1,0 +1,4 @@
+[Project]
+Name=cdownloader
+Manager=KDevCMakeManager
+VersionControl=kdevgit
