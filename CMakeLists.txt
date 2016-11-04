@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5.0)
+cmake_minimum_required(VERSION 3.6.0)
 project(cdownloader)
 
 set(CMAKE_CXX_STANDARD "11")
@@ -9,7 +9,20 @@ include(CompilerSettings)
 set_compiler_flags()
 
 find_package(CURL REQUIRED)
-find_package(jsoncpp REQUIRED)
+find_package(jsoncpp)
+if (NOT jsoncpp_FOUND)
+	message(STATUS "Trying to find jsoncpp via pkg-config...")
+	find_package(PkgConfig)
+	pkg_check_modules(jsoncpp REQUIRED jsoncpp)
+	message(STATUS "LIBRARIES: ${jsoncpp_LIBRARIES} INCLUDE_DIRS: ${jsoncpp_INCLUDE_DIRS} CFLAGS: ${jsoncpp_CFLAGS} LIBRARY_DIRS: ${jsoncpp_LIBRARY_DIRS}")
+	add_library(jsoncpp_lib UNKNOWN IMPORTED)
+	find_library(jsoncpp_LIB_LOCATION "${jsoncpp_LIBRARIES}" "${jsoncpp_LIBRARY_DIRS}")
+	set_target_properties(jsoncpp_lib PROPERTIES
+			IMPORTED_LINK_INTERFACE_LANGUAGES "C"
+			IMPORTED_LOCATION "${jsoncpp_LIB_LOCATION}"
+			INTERFACE_INCLUDE_DIRECTORIES "${jsoncpp_INCLUDE_DIRS}"
+	)
+endif(NOT jsoncpp_FOUND)
 find_package(LibArchive REQUIRED)
 find_package(CDF 3.3.1 REQUIRED)
 
