@@ -1,0 +1,1 @@
+* : uncrustify -l CPP -f $TMPFILE -c format.config.uncrustify -o $TMPFILE

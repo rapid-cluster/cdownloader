@@ -1,6 +1,107 @@
-cmake_minimum_required(VERSION 2.6)
+cmake_minimum_required(VERSION 3.5.0)
 project(cdownloader)
 
-add_executable(cdownloader main.cpp)
+set(CMAKE_CXX_STANDARD "11")
+set(CMAKE_CXX_STANDARD_REQUIRED True)
+
+list(INSERT CMAKE_MODULE_PATH 0 ${CMAKE_SOURCE_DIR}/cmake/Modules)
+include(CompilerSettings)
+set_compiler_flags()
+
+find_package(CURL REQUIRED)
+find_package(jsoncpp REQUIRED)
+find_package(LibArchive REQUIRED)
+find_package(CDF 3.3.1 REQUIRED)
+
+find_package(Boost COMPONENTS date_time filesystem log program_options system REQUIRED)
+include(CheckIncludeFileCXX)
+
+check_include_file_cxx(unistd.h HAVE_UNISTD_H)
+check_include_file_cxx(sys/types.h HAVE_SYS_TYPES_H)
+check_include_file_cxx(pwd.h HAVE_PWD_H)
+
+set(cdownloader_SOURCES
+average.hxx
+average.cxx
+cdfreader.hxx
+cdfreader.cxx
+commonDefinitions.hxx
+chunkdownloader.hxx
+chunkdownloader.cxx
+datareader.hxx
+datareader.cxx
+downloader.cxx
+downloader.hxx
+driver.hxx
+driver.cxx
+expanding.hxx
+expanding.cxx
+field.hxx
+field.cxx
+filter.hxx
+filter.cxx
+metadata.cxx
+metadata.hxx
+unpacker.hxx
+unpacker.cxx
+util.hxx
+util.cxx
+writer.hxx
+writer.cxx
+parameters.hxx
+parameters.cxx
+filters/plasmasheet.hxx
+filters/plasmasheet.cxx
+filters/baddata.hxx
+filters/baddata.cxx
+writers/ASCIIWriter.hxx
+writers/ASCIIWriter.cxx
+)
+
+include_directories(SYSTEM ${CURL_INCLUDE_DIRS} ${LibArchive_INCLUDE_DIRS})
+add_definitions(-DBOOST_LOG_DYN_LINK=1)
+
+add_library(cdownload STATIC ${cdownloader_SOURCES})
+target_link_libraries(cdownload
+	PRIVATE
+		${CURL_LIBRARIES}
+		${LibArchive_LIBRARIES}
+		Boost::log
+		CDF::CDF
+	PUBLIC
+		Boost::date_time
+		Boost::filesystem
+		Boost::system
+		jsoncpp_lib
+)
+
+if(UNIX)
+	set(DEFAULT_EXPANSION_DICTIONARY_FILE "/usr/share/cdownload/expansion.dict")
+endif()
+
+
+# debug options
+option(DEBUG_METADATA_ACTIONS "Log metadata-related actions" OFF)
+option(DEBUG_DOWNLOADING_ACTIONS "Log downloader actions" OFF)
+option(DEBUG_ARCHIVE_EXTRACTING "Log archive extraction" OFF)
+
+option(DEBUG_ALL OFF "Turn on all the DEBUG_ options")
+if (DEBUG_ALL)
+	set(DEBUG_METADATA_ACTIONS ON)
+	set(DEBUG_DOWNLOADING_ACTIONS ON)
+	set(DEBUG_ARCHIVE_EXTRACTING ON)
+endif(DEBUG_ALL)
+
+configure_file(config.h.cmake ${CMAKE_CURRENT_BINARY_DIR}/config.h @ONLY)
+
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
+
+add_executable(cdownloader cdownloader-main.cxx)
+target_link_libraries(cdownloader cdownload Boost::program_options)
 
 install(TARGETS cdownloader RUNTIME DESTINATION bin)
+
+option(BUILD_MANUAL_TESTS ON)
+if(BUILD_MANUAL_TESTS)
+	add_subdirectory(tests)
+endif(BUILD_MANUAL_TESTS)

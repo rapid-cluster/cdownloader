@@ -1,0 +1,3 @@
+name=test
+format=ASCII
+products=velocity__C4_CP_CIS-CODIF_HS_H1_MOMENTS,T__C4_CP_CIS-CODIF_HS_H1_MOMENTS,velocity__C4_CP_CIS-CODIF_HS_O1_MOMENTS

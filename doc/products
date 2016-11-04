@@ -1,0 +1,126 @@
+
+Hi, Zhenya!
+
+here is the "full" list of Cluster data products for the database.
+
+Best wishes,
+Lena
+
+-----------------------------------------------------
+proton moments:
+
+C4_CP_CIS-CODIF_HS_H1_MOMENTS
+
+parameters:
+density__C4_CP_CIS-CODIF_HS_H1_MOMENTS
+pressure__C4_CP_CIS-CODIF_HS_H1_MOMENTS
+velocity__C4_CP_CIS-CODIF_HS_H1_MOMENTS
+T__C4_CP_CIS-CODIF_HS_H1_MOMENTS
+time_tags__C4_CP_CIS-CODIF_HS_H1_MOMENTS
+
+oxygen moments:
+
+C4_CP_CIS-CODIF_HS_O1_MOMENTS
+
+parameters:
+density__C4_CP_CIS-CODIF_HS_O1_MOMENTS
+pressure__C4_CP_CIS-CODIF_HS_O1_MOMENTS --> if this is tensor 1..9
+velocity__C4_CP_CIS-CODIF_HS_O1_MOMENTS -->xyz
+T__C4_CP_CIS-CODIF_HS_O1_MOMENTS
+time_tags__C4_CP_CIS-CODIF_HS_O1_MOMENTS
+
+magnetic field:
+
+C4_CP_FGM_SPIN
+
+parameters:
+B_vec_xyz_gse__C4_CP_FGM_SPIN   -->xyz
+sc_pos_xyz_gse__C4_CP_FGM_SPIN  -->xyz
+time_tags__C4_CP_FGM_SPIN
+
+energetic electrons:
+
+C4_CP_RAP_ESPCT6
+
+Electron_Dif_flux__C4_CP_RAP_ESPCT6   -->123456
+Electron_Dif_flux_SD__C4_CP_RAP_ESPCT6 (standard deviation, I am not sure if we need this)
+Time_tags__C4_CP_RAP_ESPCT6
+
+Dimension_E__C4_CP_RAP_ESPCT6 --> support data, this line is always the same. One could store this somewhere in Metadata
+
+energetic protons:
+
+C4_CP_RAP_HSPCT
+
+Proton_Dif_flux__C4_CP_RAP_HSPCT -->1...8
+Proton_Dif_flux_SD__C4_CP_RAP_HSPCT (I am not sure if we need this)
+Time_tags__C4_CP_RAP_HSPCT
+
+Dimension_E__C4_CP_RAP_HSPCT --> support data, this line is always the same. One could store this somewhere in Metadata
+
+energetic helium:
+
+C4_CP_RAP_ISPCT_He
+
+Helium_Dif_flux__C4_CP_RAP_ISPCT_He -->1...8
+Helium_Dif_flux_SD__C4_CP_RAP_ISPCT_He (I am not sure if we need this)
+Time_tags__C4_CP_RAP_ISPCT_He
+
+Dimension_E__C4_CP_RAP_ISPCT_He --> support data, this line is always the same. One could store this somewhere in Metadata
+
+energetic CNO:
+
+C4_CP_RAP_ISPCT_CNO
+
+CNO_Dif_flux__C4_CP_RAP_ISPCT_CNO -->1...8
+CNO_Dif_flux_SD__C4_CP_RAP_ISPCT_CNO (I am not sure if we need this)
+Time_tags__C4_CP_RAP_ISPCT_CNO
+
+Dimension_E__C4_CP_RAP_ISPCT_CNO --> support data, this line is always the same. One could store this somewhere in Metadata
+
+low energy protons:
+
+C4_CP_CIS-CODIF_PAD_HS_H1_PF
+
+Differential_Particle_Flux__C4_CP_CIS-CODIF_PAD_HS_H1_PF --> 1...~31
+cis_mode__C4_CP_CIS-CODIF_PAD_HS_H1_PF
+time_tags__C4_CP_CIS-CODIF_PAD_HS_H1_PF
+
+energy_table__C4_CP_CIS-CODIF_PAD_HS_H1_PF --> support data, this line is always the same. One could store this somewhere in Metadata
+
+low energy oxygen:
+
+C4_CP_CIS-CODIF_PAD_HS_O1_PF
+
+Differential_Particle_Flux__C4_CP_CIS-CODIF_PAD_HS_O1_PF --> 1...~31
+time_tags__C4_CP_CIS-CODIF_PAD_HS_O1_PF
+
+energy_table__C4_CP_CIS-CODIF_PAD_HS_O1_PF --> support data, this line is always the same. One could store this somewhere in Metadata
+
+Electric field:
+
+C4_CP_EFW_L3_E3D_GSE
+
+E_Vec_xyz_GSE__C4_CP_EFW_L3_E3D_GSE --> xyz
+E_sigma__C4_CP_EFW_L3_E3D_GSE  (Standard deviation)
+E_quality__C4_CP_EFW_L3_E3D_GSE (Quality of the data, 4=best)
+time_tags__C4_CP_EFW_L3_E3D_GSE
+
+ULF waves:
+
+C4_CP_AUX_MAARBLE_ULF_PC35
+
+BB_xxyyzz_fac__C4_CP_AUX_MAARBLE_ULF_PC35 (multidimensional array 3x~25xtime of cause)
+BMAG__C4_CP_AUX_MAARBLE_ULF_PC35
+EE_xxyyzz_fac__C4_CP_AUX_MAARBLE_ULF_PC35 (multidimensional array 3x~25xtime)
+ESUM__C4_CP_AUX_MAARBLE_ULF_PC35
+
+Frequency__C4_CP_AUX_MAARBLE_ULF_PC35 --> frequencies, support data, this line is always the same. One could store this somewhere in Metadata
+
+Position:
+
+C4_JP_AUX_PMP
+
+L_value__C4_JP_AUX_PMP
+Mag_Local_time__C4_JP_AUX_PMP
+time_tags__C4_JP_AUX_PMP
