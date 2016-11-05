@@ -23,11 +23,16 @@ if (CMAKE_COMPILER_IS_GNUCXX)
 		"-Wnon-virtual-dtor -Wfloat-equal -Wcast-qual -Wcast-align"
 		"-Wsign-conversion -Winvalid-pch -Werror=return-type -Werror=overloaded-virtual -Wno-long-long"
 # 		"-Weffc++"
-		"-fext-numeric-literals" # boost needs this
-# 	this is for developing
-		"-fsanitize=address"
 #	-fstack-protector-all
-		"-Werror -Wno-error=deprecated-declarations -Wno-error=cpp")
+		"-Werror -Wno-error=deprecated-declarations")
+	if (GCC_VERSION VERSION_GREATER "4.4")
+		list(APPEND _GCC_COMMON_CXX_FLAGS_LIST
+			"-fext-numeric-literals" # boost needs this
+# 			this is for developing
+			"-fsanitize=address"
+			 "-Wno-error=cpp"
+			 )
+	endif (GCC_VERSION VERSION_GREATER "4.4")
 	string(REPLACE ";" " " _GCC_COMMON_CXX_FLAGS "${_GCC_COMMON_CXX_FLAGS_LIST}")
 
 	set (_GCC_48_CXX_FLAGS "${_GCC_COMMON_CXX_FLAGS} -Wpedantic")
