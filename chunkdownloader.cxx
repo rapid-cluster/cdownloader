@@ -36,7 +36,7 @@ cdownload::ChunkDownloader::ChunkDownloader(const path& tmpDir,
                                             const cdownload::DataDownloader& downloader,
                                             const std::vector<DatasetName>& datasets,
                                             const datetime& startTime, const datetime& endTime)
-	: downloader_{downloader}
+	: downloader_(downloader)
 	, datasets_{datasets}
 	, tmpDir_{tmpDir}
 	, start_{startTime}
