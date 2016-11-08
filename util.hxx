@@ -27,6 +27,7 @@
 #include <map>
 #include <vector>
 #include <iosfwd>
+#include <type_traits>
 
 namespace cdownload {
 
@@ -90,10 +91,10 @@ namespace cdownload {
 	path homeDirectory();
 
 
-	template <class List, class Delim, class Bracket>
+	template <class ListStored, class ListArg, class Delim, class Bracket>
 	class collection_printer {
 	public:
-		collection_printer(const List& list, Delim delim, Bracket opening, Bracket closing)
+		collection_printer(ListArg list, Delim delim, Bracket opening, Bracket closing)
 			: list_{list}
 			, delim_ {delim}
 			, opening_{opening}
@@ -101,15 +102,15 @@ namespace cdownload {
 		}
 
 	private:
-		template <class ListType, class DelimType, class BracketType>
-		friend std::ostream& operator << (std::ostream&, const collection_printer<ListType, DelimType, BracketType>&);
-		const List& list_;
+		template <class ListStoredType, class ListArgType, class DelimType, class BracketType>
+		friend std::ostream& operator << (std::ostream&, const collection_printer<ListStoredType, ListArgType, DelimType, BracketType>&);
+		ListStored list_;
 		const Delim delim_;
 		const Bracket opening_, closing_;
 	};
 
-	template <class List, class Delim, class Bracket>
-	std::ostream& operator<<(std::ostream& os, const collection_printer<List, Delim, Bracket>& list) {
+	template <class ListStored, class ListArg, class Delim, class Bracket>
+	std::ostream& operator<<(std::ostream& os, const collection_printer<ListStored, ListArg, Delim, Bracket>& list) {
 		os << list.opening_;
 		if (list.list_.begin() != list.list_.end()) {
 			auto i = list.list_.begin();
@@ -124,18 +125,34 @@ namespace cdownload {
 	}
 
 	template <class List, class Delim, class Bracket>
-	inline collection_printer<List, Delim, Bracket>
+	inline collection_printer<const List&, const List&, Delim, Bracket>
 	put_list(const List& list, Delim delim, Bracket opening, Bracket closing) {
-		return collection_printer<List, Delim, Bracket>(list, delim, opening, closing);
+		return collection_printer<const List&, const List&, Delim, Bracket>(list, delim, opening, closing);
 	}
 
 	template <class List>
-	inline collection_printer<List, char, char>
+	inline collection_printer<const List&, const List&, char, char>
 	put_list(const List& list, char delim = ',', char opening = '[', char closing = ']') {
-		return collection_printer<List, char, char>(list, delim, opening, closing);
+		return collection_printer<const List&, const List&, char, char>(list, delim, opening, closing);
 	}
 
+	template <class List, class Delim, class Bracket, class = typename std::enable_if
+            <
+                !std::is_lvalue_reference<List>::value
+            >::type>
+	inline collection_printer<List, List&&, Delim, Bracket>
+	put_list(List&& list, Delim delim, Bracket opening, Bracket closing) {
+		return collection_printer<List, List&&, Delim, Bracket>(list, delim, opening, closing);
+	}
 
+	template <class List, class = typename std::enable_if
+            <
+                !std::is_lvalue_reference<List>::value
+            >::type>
+	inline collection_printer<List, List&&, char, char>
+	put_list(List&& list, char delim = ',', char opening = '[', char closing = ']') {
+		return collection_printer<List, List&&, char, char>(std::move(list), delim, opening, closing);
+	}
 
 
 namespace csa_time_formatting {
