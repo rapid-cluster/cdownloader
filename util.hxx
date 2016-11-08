@@ -95,7 +95,7 @@ namespace cdownload {
 	class collection_printer {
 	public:
 		collection_printer(ListArg list, Delim delim, Bracket opening, Bracket closing)
-			: list_{list}
+			: list_(list)
 			, delim_ {delim}
 			, opening_{opening}
 			, closing_{closing} {
@@ -142,7 +142,7 @@ namespace cdownload {
             >::type>
 	inline collection_printer<List, List&&, Delim, Bracket>
 	put_list(List&& list, Delim delim, Bracket opening, Bracket closing) {
-		return collection_printer<List, List&&, Delim, Bracket>(list, delim, opening, closing);
+		return collection_printer<List, List&&, Delim, Bracket>(std::move(list), delim, opening, closing);
 	}
 
 	template <class List, class = typename std::enable_if
