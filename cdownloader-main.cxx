@@ -1,6 +1,7 @@
 #include "config.h"
 
 #include <iostream>
+#include <fstream>
 #include <sstream>
 
 #include "driver.hxx"
@@ -11,6 +12,8 @@
 #include <boost/log/core.hpp>
 #include <boost/log/trivial.hpp>
 #include <boost/log/expressions.hpp>
+#include <boost/log/sinks.hpp>
+#include <boost/core/null_deleter.hpp>
 
 #include <unistd.h>
 #include <errno.h>
@@ -19,41 +22,41 @@ namespace po = boost::program_options;
 
 #if 1
 // namespace cdownload {
-namespace boost{
-	namespace posix_time {
-void validate(boost::any& v,
-              const std::vector<std::string>& values,
-              ptime* /*target_type*/, int)
-{
-	using namespace cdownload::csa_time_formatting;
-	using namespace boost::program_options;
+namespace boost {
+namespace posix_time {
+	void validate(boost::any& v,
+	              const std::vector<std::string>& values,
+	              ptime* /*target_type*/, int)
+	{
+		using namespace cdownload::csa_time_formatting;
+		using namespace boost::program_options;
 
-	// Extract the first string from 'values'. If there is more than
-	// one string, it's an error, and exception will be thrown.
-	const std::string& s = validators::get_single_string(values);
-	std::istringstream is(s);
+		// Extract the first string from 'values'. If there is more than
+		// one string, it's an error, and exception will be thrown.
+		const std::string& s = validators::get_single_string(values);
+		std::istringstream is(s);
 
-	cdownload::datetime dt;
-	cdownload::csa_time_formatting::operator>>(is, dt);
-	v = boost::any(dt);
-}
+		cdownload::datetime dt;
+		cdownload::csa_time_formatting::operator>>(is, dt);
+		v = boost::any(dt);
+	}
 
-void validate(boost::any& v,
-              const std::vector<std::string>& values,
-              cdownload::timeduration* /*target_type*/, int)
-{
-	using namespace cdownload::csa_time_formatting;
-	using namespace boost::program_options;
+	void validate(boost::any& v,
+	              const std::vector<std::string>& values,
+	              cdownload::timeduration* /*target_type*/, int)
+	{
+		using namespace cdownload::csa_time_formatting;
+		using namespace boost::program_options;
 
-	// Extract the first string from 'values'. If there is more than
-	// one string, it's an error, and exception will be thrown.
-	const std::string& s = validators::get_single_string(values);
-	std::istringstream is(s);
+		// Extract the first string from 'values'. If there is more than
+		// one string, it's an error, and exception will be thrown.
+		const std::string& s = validators::get_single_string(values);
+		std::istringstream is(s);
 
-	cdownload::timeduration dt;
-	is >> dt;
-	v = boost::any(dt);
-}
+		cdownload::timeduration dt;
+		is >> dt;
+		v = boost::any(dt);
+	}
 }
 }
 #endif
@@ -88,29 +91,29 @@ int main(int ac, char** av)
 
 	desc.add_options()
 	    ("help", "produce this help message")
-		("expansion-dict",
-			po::value<path>()->default_value(DEFAULT_EXPANSION_DICTIONARY_FILE),
-			"Location of the expansion dictionary file")
-		("verbosity-level,v",
-			po::value<logging::trivial::severity_level>()->default_value(logging::trivial::warning),
-			"Verbosity level");
-	;
+	    ("expansion-dict",
+	    po::value<path>()->default_value(DEFAULT_EXPANSION_DICTIONARY_FILE),
+	    "Location of the expansion dictionary file")
+	    ("verbosity-level,v",
+	    po::value<logging::trivial::severity_level>()->default_value(logging::trivial::warning),
+	    "Verbosity level")
+		("log-file", po::value<path>(), "Log file location");
 
 	po::options_description timeOptions("Time interval");
 
 	timeOptions.add_options()
-		("start", po::value<cdownload::datetime>()->default_value(cdownload::makeDateTime(2000, 8, 10)), "Start time")
-		("end", po::value<cdownload::datetime>()->default_value(boost::posix_time::second_clock::universal_time()), "End time")
-		("cell-size", po::value<cdownload::timeduration>()->required(), "Size of the averaging cell")
+	    ("start", po::value<cdownload::datetime>()->default_value(cdownload::makeDateTime(2000, 8, 10)), "Start time")
+	    ("end", po::value<cdownload::datetime>()->default_value(boost::posix_time::second_clock::universal_time()), "End time")
+	    ("cell-size", po::value<cdownload::timeduration>()->required(), "Size of the averaging cell")
 	;
 	desc.add(timeOptions);
 
 	po::options_description outputOptions("Outputs");
 
 	outputOptions.add_options()
-		("output-dir", po::value<cdownload::path>()->default_value("/tmp"), "Output directory")
-		("work-dir", po::value<cdownload::path>()->default_value("/tmp"), "Working directory")
-		("output", po::value<std::vector<cdownload::path>>()->composing()->required(), "List of files with output descriptions")
+	    ("output-dir", po::value<cdownload::path>()->default_value("/tmp"), "Output directory")
+	    ("work-dir", po::value<cdownload::path>()->default_value("/tmp"), "Working directory")
+	    ("output", po::value<std::vector<cdownload::path> >()->composing()->required(), "List of files with output descriptions")
 	;
 
 	desc.add(outputOptions);
@@ -145,9 +148,9 @@ int main(int ac, char** av)
 		return 2;
 	}
 
-	std::vector<path> outputDefinitions = vm["output"].as<std::vector<path>>();
+	std::vector<path> outputDefinitions = vm["output"].as<std::vector<path> >();
 
-	for (path p:outputDefinitions) {
+	for (path p: outputDefinitions) {
 		try {
 			parameters.addOuput(cdownload::parseOutputDefinitionFile(p));
 		} catch (std::exception& e) {
@@ -162,6 +165,32 @@ int main(int ac, char** av)
 	(
 		logging::trivial::severity >= logLevel
 	);
+
+	boost::shared_ptr<logging::sinks::text_ostream_backend > logBackend;
+	using sink_t = logging::sinks::synchronous_sink< logging::sinks::text_ostream_backend >;
+	boost::shared_ptr< sink_t > logSink;
+
+	if (vm.count("log-file")) {
+		path logFile = vm["log-file"].as<path>();
+		if (!logFile.parent_path().empty()) {
+			assureDirectoryExistsAndWritable(logFile.parent_path(), "Log file directory");
+		}
+		// Create a backend and attach a couple of streams to it
+		logBackend = boost::make_shared< logging::sinks::text_ostream_backend >();
+		logBackend->add_stream(
+			boost::shared_ptr< std::ostream >(&std::clog, boost::null_deleter()));
+		logBackend->add_stream(
+			boost::shared_ptr< std::ostream >(new std::ofstream(logFile.c_str())));
+
+		// Enable auto-flushing after each log record written
+		logBackend->auto_flush(true);
+
+		// Wrap it into the frontend and register in the core.
+		// The backend requires synchronization in the frontend.
+
+		logSink = boost::shared_ptr< sink_t >(new sink_t(logBackend));
+		logging::core::get()->add_sink(logSink);
+	}
 
 	parameters.setExpansionDictFile(vm["expansion-dict"].as<path>());
 	parameters.setTimeRange(vm["start"].as<cdownload::datetime>(), vm["end"].as<cdownload::datetime>());

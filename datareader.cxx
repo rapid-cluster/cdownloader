@@ -39,7 +39,7 @@ cdownload::DataReader::DataReader(const datetime& startTime, timeduration cellLe
 	: startTime_{startTime}
 	, cellLength_{cellLength}
 	, readers_{}
-	, cells_{cells}
+	, cells_(cells)
 	, filters_{filters}
 	, fields_{fields}
 	, fail_{false}

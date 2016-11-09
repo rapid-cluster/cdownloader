@@ -34,7 +34,7 @@
 #endif
 
 cdownload::Metadata::Metadata()
-	: datasetNames_{MetadataDownloader().downloadDatasetsList()}
+	: datasetNames_(MetadataDownloader().downloadDatasetsList())
 {
 }
 
