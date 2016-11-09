@@ -13,7 +13,6 @@
 #include <boost/log/trivial.hpp>
 #include <boost/log/expressions.hpp>
 #include <boost/log/sinks.hpp>
-#include <boost/core/null_deleter.hpp>
 
 #include <unistd.h>
 #include <errno.h>
@@ -76,6 +75,17 @@ void assureDirectoryExistsAndWritable(const cdownload::path& p, const std::strin
 		throw std::runtime_error(dirNameForUser + " directory '" + p.string() + "' is not writable: " + std::string(errMessage));
 	}
 }
+
+struct null_deleter
+{
+    //! Function object result type
+    typedef void result_type;
+    /*!
+     * Does nothing
+     */
+    template< typename T >
+    void operator() (T*) const BOOST_NOEXCEPT {}
+};
 
 int main(int ac, char** av)
 {
@@ -178,7 +188,7 @@ int main(int ac, char** av)
 		// Create a backend and attach a couple of streams to it
 		logBackend = boost::make_shared< logging::sinks::text_ostream_backend >();
 		logBackend->add_stream(
-			boost::shared_ptr< std::ostream >(&std::clog, boost::null_deleter()));
+			boost::shared_ptr< std::ostream >(&std::clog, null_deleter()));
 		logBackend->add_stream(
 			boost::shared_ptr< std::ostream >(new std::ofstream(logFile.c_str())));
 
