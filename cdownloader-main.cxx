@@ -13,6 +13,9 @@
 #include <boost/log/trivial.hpp>
 #include <boost/log/expressions.hpp>
 #include <boost/log/sinks.hpp>
+#include <boost/log/utility/setup/file.hpp>
+#include <boost/log/utility/setup/common_attributes.hpp>
+#include <boost/log/support/date_time.hpp>
 
 #include <unistd.h>
 #include <errno.h>
@@ -76,15 +79,16 @@ void assureDirectoryExistsAndWritable(const cdownload::path& p, const std::strin
 	}
 }
 
-struct null_deleter
-{
-    //! Function object result type
-    typedef void result_type;
-    /*!
-     * Does nothing
-     */
-    template< typename T >
-    void operator() (T*) const BOOST_NOEXCEPT {}
+struct null_deleter {
+	//! Function object result type
+	typedef void result_type;
+	/*!
+	 * Does nothing
+	 */
+	template< typename T >
+	void operator() (T*) const BOOST_NOEXCEPT
+	{
+	}
 };
 
 int main(int ac, char** av)
@@ -107,7 +111,7 @@ int main(int ac, char** av)
 	    ("verbosity-level,v",
 	    po::value<logging::trivial::severity_level>()->default_value(logging::trivial::warning),
 	    "Verbosity level")
-		("log-file", po::value<path>(), "Log file location");
+	    ("log-file", po::value<path>(), "Log file location");
 
 	po::options_description timeOptions("Time interval");
 
@@ -176,30 +180,27 @@ int main(int ac, char** av)
 		logging::trivial::severity >= logLevel
 	);
 
-	boost::shared_ptr<logging::sinks::text_ostream_backend > logBackend;
-	using sink_t = logging::sinks::synchronous_sink< logging::sinks::text_ostream_backend >;
-	boost::shared_ptr< sink_t > logSink;
-
 	if (vm.count("log-file")) {
 		path logFile = vm["log-file"].as<path>();
 		if (!logFile.parent_path().empty()) {
 			assureDirectoryExistsAndWritable(logFile.parent_path(), "Log file directory");
 		}
-		// Create a backend and attach a couple of streams to it
-		logBackend = boost::make_shared< logging::sinks::text_ostream_backend >();
-		logBackend->add_stream(
-			boost::shared_ptr< std::ostream >(&std::clog, null_deleter()));
-		logBackend->add_stream(
-			boost::shared_ptr< std::ostream >(new std::ofstream(logFile.c_str())));
 
-		// Enable auto-flushing after each log record written
-		logBackend->auto_flush(true);
+		logging::add_file_log
+		(
+			logging::keywords::file_name = logFile.string(),
+//          logging::keywords::rotation_size = 10 * 1024 * 1024,
+//          logging::keywords::time_based_rotation = logging::sinks::file::rotation_at_time_point(0, 0, 0),
+			logging::keywords::format = (
+				logging::expressions::stream
+				    << logging::expressions::format_date_time< boost::posix_time::ptime >("TimeStamp", "[%Y-%m-%dT%H:%M:%S.%f]")
+				    << ": <" << logging::trivial::severity
+				    << "> " << logging::expressions::smessage
+				),
+			logging::keywords::auto_flush = true
+		);
 
-		// Wrap it into the frontend and register in the core.
-		// The backend requires synchronization in the frontend.
-
-		logSink = boost::shared_ptr< sink_t >(new sink_t(logBackend));
-		logging::core::get()->add_sink(logSink);
+		logging::add_common_attributes();
 	}
 
 	parameters.setExpansionDictFile(vm["expansion-dict"].as<path>());
