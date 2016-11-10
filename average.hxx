@@ -40,15 +40,21 @@ namespace cdownload {
 	 */
 	class AveragingRegister {
 	public:
+
+		typedef double mean_value_type;
+		typedef double stddev_value_type;
+		typedef double variance_value_type;
+		typedef std::size_t counter_type;
+
 		AveragingRegister();
 		void reset();
 
 		void add(double value, double weight = 1.);
 
-		double mean() const;
-		std::size_t count() const;
-		double variance() const;
-		double stdDev() const;
+		mean_value_type mean() const;
+		counter_type count() const;
+		variance_value_type variance() const;
+		stddev_value_type stdDev() const;
 		void scheduleReset();
 	private:
 		bool resetFlag_;

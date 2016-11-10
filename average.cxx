@@ -45,22 +45,22 @@ void cdownload::AveragingRegister::add(double value, double aweight)
 	acc_(value, ba::weight = aweight);
 }
 
-double cdownload::AveragingRegister::mean() const
+cdownload::AveragingRegister::mean_value_type cdownload::AveragingRegister::mean() const
 {
 	return ba::extract::weighted_mean(acc_);
 }
 
-std::size_t cdownload::AveragingRegister::count() const
+cdownload::AveragingRegister::counter_type cdownload::AveragingRegister::count() const
 {
 	return ba::extract::count(acc_);
 }
 
-double cdownload::AveragingRegister::variance() const
+cdownload::AveragingRegister::variance_value_type cdownload::AveragingRegister::variance() const
 {
 	return ba::extract::weighted_variance(acc_);
 }
 
-double cdownload::AveragingRegister::stdDev() const
+cdownload::AveragingRegister::stddev_value_type cdownload::AveragingRegister::stdDev() const
 {
 	return std::sqrt(variance());
 }

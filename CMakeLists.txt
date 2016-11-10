@@ -33,6 +33,9 @@ check_include_file_cxx(unistd.h HAVE_UNISTD_H)
 check_include_file_cxx(sys/types.h HAVE_SYS_TYPES_H)
 check_include_file_cxx(pwd.h HAVE_PWD_H)
 
+include(TestBigEndian)
+test_big_endian(SYSTEN_BIG_ENDIAN)
+
 set(cdownloader_SOURCES
 average.hxx
 average.cxx
@@ -69,6 +72,8 @@ filters/baddata.hxx
 filters/baddata.cxx
 writers/ASCIIWriter.hxx
 writers/ASCIIWriter.cxx
+writers/BinaryWriter.hxx
+writers/BinaryWriter.cxx
 )
 
 include_directories(SYSTEM ${CURL_INCLUDE_DIRS} ${LibArchive_INCLUDE_DIRS})

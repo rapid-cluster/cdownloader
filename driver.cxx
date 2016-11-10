@@ -36,6 +36,7 @@
 #include "filters/plasmasheet.hxx"
 
 #include "writers/ASCIIWriter.hxx"
+#include "writers/BinaryWriter.hxx"
 
 #include <boost/filesystem/operations.hpp>
 #include <boost/log/trivial.hpp>
@@ -238,6 +239,8 @@ std::unique_ptr<cdownload::Writer> cdownload::Driver::createWriterForOutput(cons
 	switch (output.format()) {
 	case Output::Format::ASCII:
 		return std::unique_ptr<cdownload::Writer>{new ASCIIWriter(params_.outputDir() / (output.name() + ".txt"))};
+	case Output::Format::Binary:
+		return std::unique_ptr<cdownload::Writer>{new BinaryWriter(params_.outputDir() / (output.name() + ".bin"))};
 	default:
 		throw std::logic_error("Support for this writer format is not implemented");
 	}
