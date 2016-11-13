@@ -27,6 +27,7 @@
 
 #include <cstdio>
 #include <fstream>
+#include <type_traits>
 
 #include "config.h"
 
@@ -74,13 +75,21 @@ void cdownload::BinaryWriter::FileClose::operator()(::FILE* f) const
 	std::fclose(f);
 }
 
-cdownload::BinaryWriter::BinaryWriter(const path& fileName)
-	: output_(std::fopen(fileName.c_str(), "w"))
-	, outputFileName_(fileName)
-{
-}
+cdownload::BinaryWriter::BinaryWriter() = default;
 
 cdownload::BinaryWriter::~BinaryWriter() = default;
+
+void cdownload::BinaryWriter::open(const path& fileName)
+{
+	output_.reset(std::fopen(fileName.c_str(), "a+"));
+	std::fseek(output_.get(), 0, SEEK_END);
+	outputFileName_ = fileName;
+}
+
+void cdownload::BinaryWriter::truncate()
+{
+	output_.reset(std::fopen(outputFileName_.c_str(), "w+"));
+}
 
 void cdownload::BinaryWriter::write(std::size_t cellNumber, const datetime& dt,
                                    const std::vector<AveragedVariable>& cells)
@@ -134,16 +143,45 @@ namespace {
 	}
 }
 
-void cdownload::BinaryWriter::initialize(const std::vector<Field>& fields)
+void cdownload::BinaryWriter::writeHeader()
 {
 	string headerFileName = outputFileName_.string() + ".hdr";
 
 	std::ofstream headerFile(headerFileName.c_str());
 	// writing a header line
-	headerFile << "CellNo\tMidTime";
-	for (const FieldDesc& f: fields) {
+	headerFile << "CellNo <[" <<
+		datatypenaming::NATIVE_UNSIGNED_INT << sizeof(std::size_t) * CHAR_BIT << "]>\t" <<
+		"MidTime <[" <<
+		datatypenaming::NATIVE_UNSIGNED_INT << sizeof(decltype(timeduration().total_milliseconds())) * CHAR_BIT << "]>";
+	for (const FieldDesc& f: fields()) {
 		printFieldHeader(headerFile, f.name().name(), f.elementCount());
 	}
 	headerFile << std::endl;
+}
+
+
+void cdownload::BinaryWriter::initialize(const std::vector<Field>& fields)
+{
+	stride_ = sizeof(std::size_t) + sizeof(decltype(timeduration().total_milliseconds()));
+		const std::size_t elementSize = (sizeof(AveragingRegister::mean_value_type) +
+				sizeof(AveragingRegister::counter_type) +
+				sizeof(AveragingRegister::stddev_value_type));
+	for (const FieldDesc& f: fields) {
+		std::size_t fieldSize = elementSize * f.elementCount();
+		stride_ += fieldSize;
+	}
 	base::initialize(fields);
+}
+
+bool cdownload::BinaryWriter::canAppend(std::size_t& lastWrittenCellNumber)
+{
+	auto curPos = std::ftell(output_.get());
+	auto signedStride = static_cast<decltype(curPos)>(stride_);
+	if (curPos > signedStride) {
+		std::fseek(output_.get(), -signedStride, SEEK_CUR);
+		auto read = std::fread(&lastWrittenCellNumber, sizeof(std::size_t), 1, output_.get());
+		std::fseek(output_.get(), curPos, SEEK_SET);
+		return read == 1;
+	}
+	return false;
 }

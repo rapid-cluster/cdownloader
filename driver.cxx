@@ -202,6 +202,51 @@ void cdownload::Driver::doTask()
 
 	std::size_t cellNo = 0;
 
+	if (params_.continueDownloading()) {
+		// check that all outputs are at the same cell number
+		// first collect cell numbers
+		std::vector<std::size_t> lastCellNumbers;
+		std::size_t lcn;
+		for (std::size_t outputIndex = 0; outputIndex < writers.size(); ++outputIndex) {
+			if (writers[outputIndex]->canAppend(lcn)) {
+				lastCellNumbers.push_back(lcn);
+			} else {
+				BOOST_LOG_TRIVIAL(error) << "Can not append to output '" <<
+					params_.outputs()[outputIndex].name() << '\'';
+				throw std::runtime_error("Can not append to output '" + params_.outputs()[outputIndex].name() + '\'');
+			}
+		}
+
+		BOOST_LOG_TRIVIAL(trace) << "Found last cell indexes:";
+		for (std::size_t outputIndex = 0; outputIndex < writers.size(); ++outputIndex) {
+			BOOST_LOG_TRIVIAL(trace) << "\t" << params_.outputs()[outputIndex].name() <<
+				" : " << lastCellNumbers[outputIndex];
+		}
+
+		// not check collected values
+		for (std::size_t i = 1; i < lastCellNumbers.size(); ++i) {
+			if (lastCellNumbers[i] != lastCellNumbers[0]) {
+				BOOST_LOG_TRIVIAL(error) << "All last cell indexes have to be equal. Exiting";
+				throw std::runtime_error("All last cell indexes have to be equal");
+			}
+		}
+
+		// everything seems to be OK, then:
+		// 1. fast-forward cellNo
+		cellNo = lastCellNumbers[0] + 1;
+		// 2. reinitialize chunkDownloader
+		datetime startTime = availableStartDateTime + params_.timeInterval() * cellNo;
+		BOOST_LOG_TRIVIAL(info) << "Fast forwarding to " << startTime;
+		chunkDownloader.setNextChunkStartTime(startTime);
+		// 3. ...and download it
+		currentChunk = chunkDownloader.nextChunk();
+	} else {
+		for (auto& writer: writers) {
+			writer->truncate();
+			writer->writeHeader();
+		}
+	}
+
 	while (!chunkDownloader.eof()) {
 		BOOST_LOG_TRIVIAL(info) << "Processing chunk [" << currentChunk.startTime << ','
 		                        << currentChunk.endTime << ']' << std::endl;
@@ -237,10 +282,16 @@ void cdownload::Driver::doTask()
 std::unique_ptr<cdownload::Writer> cdownload::Driver::createWriterForOutput(const cdownload::Output& output) const
 {
 	switch (output.format()) {
-	case Output::Format::ASCII:
-		return std::unique_ptr<cdownload::Writer>{new ASCIIWriter(params_.outputDir() / (output.name() + ".txt"))};
-	case Output::Format::Binary:
-		return std::unique_ptr<cdownload::Writer>{new BinaryWriter(params_.outputDir() / (output.name() + ".bin"))};
+	case Output::Format::ASCII: {
+		auto res = std::unique_ptr<cdownload::Writer>{new ASCIIWriter()};
+		res->open(params_.outputDir() / (output.name() + ".txt"));
+		return res;
+	}
+	case Output::Format::Binary: {
+		auto res = std::unique_ptr<cdownload::Writer>{new BinaryWriter()};
+		res->open(params_.outputDir() / (output.name() + ".bin"));
+		return res;
+	}
 	default:
 		throw std::logic_error("Support for this writer format is not implemented");
 	}

@@ -53,6 +53,9 @@ cdownload::Chunk cdownload::ChunkDownloader::nextChunk()
 	std::size_t maxDownloadedFileSize = 0;
 	Chunk res;
 	bool downloaded = false;
+	if (currentChunkStart_ + currentChunkLength_ > end_) {
+		currentChunkLength_ = end_ - currentChunkStart_;
+	}
 	while (!downloaded) {
 		try {
 			res.files = downloadChunk(currentChunkStart_, currentChunkLength_, maxDownloadedFileSize);
@@ -144,6 +147,11 @@ cdownload::ChunkDownloader::downloadChunk(const datetime& startTime, const timed
 bool cdownload::ChunkDownloader::eof() const
 {
 	return eof_;
+}
+
+void cdownload::ChunkDownloader::setNextChunkStartTime(const datetime& startTime)
+{
+	currentChunkStart_ = startTime;
 }
 
 bool cdownload::Chunk::empty() const

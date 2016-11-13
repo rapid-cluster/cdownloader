@@ -35,19 +35,23 @@ namespace cdownload {
 	class BinaryWriter: public Writer {
 		using base = Writer;
 	public:
-		BinaryWriter(const path& fileName);
+		BinaryWriter();
 		~BinaryWriter();
 
 		void initialize(const std::vector<Field>& fields) override;
-
+		void open(const path & fileName) override;
 		void write(std::size_t cellNumber, const datetime& dt,
 				   const std::vector<AveragedVariable> & cells) override;
+		bool canAppend(std::size_t& lastWrittenCellNumber) override;
+		void truncate() override;
+		void writeHeader() override;
 	private:
 		struct FileClose {
 			void operator()(::FILE*) const;
 		};
 		std::unique_ptr<::FILE, FileClose> output_;
 		path outputFileName_;
+		std::size_t stride_;
 	};
 }
 #endif

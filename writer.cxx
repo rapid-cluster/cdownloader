@@ -27,11 +27,10 @@
 // intentionally intialize numOfCellsToWrite_ to large number
 // that will lead to a crash if Writer::initialize() was not called
 cdownload::Writer::Writer()
-	: numOfCellsToWrite_{static_cast<std::size_t>(-1)}
 {
 }
 
 void cdownload::Writer::initialize(const std::vector<cdownload::Field>& fields)
 {
-	numOfCellsToWrite_ = fields.size();
+	fields_ = fields;
 }

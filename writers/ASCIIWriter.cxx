@@ -27,12 +27,23 @@
 
 #include <fstream>
 
-cdownload::ASCIIWriter::ASCIIWriter(const path& fileName)
-	: output_(new std::ofstream(fileName.c_str()))
-{
-}
+#include <boost/log/trivial.hpp>
+
+cdownload::ASCIIWriter::ASCIIWriter() = default;
 
 cdownload::ASCIIWriter::~ASCIIWriter() = default;
+
+void cdownload::ASCIIWriter::open(const path& fileName)
+{
+	output_.reset(new std::fstream(fileName.c_str(), std::ios_base::ate | std::ios_base::in | std::ios_base::out));
+	fileName_ = fileName;
+}
+
+void cdownload::ASCIIWriter::truncate()
+{
+	output_.reset(new std::fstream(fileName_.c_str(), std::ios_base::trunc | std::ios_base::in | std::ios_base::out));
+}
+
 
 void cdownload::ASCIIWriter::write(std::size_t cellNumber, const datetime& dt,
                                    const std::vector<AveragedVariable>& cells)
@@ -68,13 +79,45 @@ namespace {
 	}
 }
 
-void cdownload::ASCIIWriter::initialize(const std::vector<Field>& fields)
+void cdownload::ASCIIWriter::writeHeader()
 {
 	// writing a header line
 	(*output_) << "CellNo\tMidTime";
-	for (const FieldDesc& f: fields) {
+	for (const FieldDesc& f: fields()) {
 		printFieldHeader((*output_), f.name().name(), f.elementCount());
 	}
 	(*output_) << std::endl << std::flush;
+}
+
+void cdownload::ASCIIWriter::initialize(const std::vector<Field>& fields)
+{
 	base::initialize(fields);
+}
+
+bool cdownload::ASCIIWriter::canAppend(std::size_t& lastWrittenCellNumber)
+{
+	lastWrittenCellNumber = 0;
+	BOOST_LOG_TRIVIAL(trace) << "Seeking backwards in " << fileName_ << " looking for EOL...";
+	// if results file exists
+// 	auto curPos = output_->tellg();
+	output_->seekg(-4, std::ios::end); // the file ends with '\n' most likely, but no line can be shorter than 4 chars
+	if (output_->fail()) {
+		BOOST_LOG_TRIVIAL(error) << "Output is in failed state, reading is impossible";
+	}
+	char ch = 0;
+	for (; output_->get(ch); output_->seekg(-2, std::ios::cur)) {
+		if (ch == '\n') {
+			(*output_) >> lastWrittenCellNumber;
+			break;
+		}
+	}
+	if (output_->fail()) {
+		BOOST_LOG_TRIVIAL(error) << "Output came to failed state";
+	}
+	if (output_->eof()) {
+		BOOST_LOG_TRIVIAL(error) << "Output is in EOF state";
+	}
+	output_->seekg(0, std::ios::end);
+	output_->seekp(0, std::ios::end);
+	return lastWrittenCellNumber != 0; // because there might be only header in the file
 }

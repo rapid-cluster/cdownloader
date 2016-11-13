@@ -30,8 +30,6 @@
 namespace cdownload {
 
 	class Field;
-
-
 	/**
 	 * @brief Basic interface class for writing result files
 	 *
@@ -49,6 +47,11 @@ namespace cdownload {
 		 * fields (and in the same order) as they need to be written into the output file.
 		 */
 		virtual void initialize(const std::vector<Field>& fields);
+		virtual void writeHeader() = 0;
+
+		virtual void open(const path& fileName) = 0;
+		virtual bool canAppend(std::size_t& lastWrittenCellNumber) = 0;
+		virtual void truncate() = 0;
 
 		/**
 		 * @brief Writes a data record into the output stream
@@ -62,10 +65,13 @@ namespace cdownload {
 	protected:
 		Writer();
 		std::size_t numOfCellsToWrite() const {
-			return numOfCellsToWrite_;
+			return fields_.size();
+		}
+		const std::vector<Field>& fields() const {
+			return fields_;
 		}
 	private:
-		std::size_t numOfCellsToWrite_;
+		std::vector<Field> fields_;
 	};
 }
 

@@ -59,6 +59,7 @@ namespace cdownload {
 
 		Chunk nextChunk();
 		bool eof() const;
+		void setNextChunkStartTime(const datetime& startTime);
 	private:
 		std::map<std::string, DownloadedProductFile>
 		downloadChunk(const datetime& startTime, const timeduration& duration,
@@ -70,7 +71,7 @@ namespace cdownload {
 		datetime start_, end_;
 		datetime currentChunkStart_;
 		timeduration currentChunkLength_;
-		std::size_t lastMaxDownloadedFileSize_;
+// 		std::size_t lastMaxDownloadedFileSize_;
 		bool eof_;
 	};
 }

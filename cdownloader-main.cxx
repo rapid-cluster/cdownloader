@@ -109,9 +109,10 @@ int main(int ac, char** av)
 	    po::value<path>()->default_value(DEFAULT_EXPANSION_DICTIONARY_FILE),
 	    "Location of the expansion dictionary file")
 	    ("verbosity-level,v",
-	    po::value<logging::trivial::severity_level>()->default_value(logging::trivial::warning),
+	    po::value<logging::trivial::severity_level>()->default_value(logging::trivial::info),
 	    "Verbosity level")
-	    ("log-file", po::value<path>(), "Log file location");
+	    ("log-file", po::value<path>(), "Log file location")
+	    ("continue", po::value<bool>()->default_value(false)->implicit_value(true), "Continue downloading existing output files");
 
 	po::options_description timeOptions("Time interval");
 
@@ -148,6 +149,7 @@ int main(int ac, char** av)
 	}
 
 	cdownload::Parameters parameters {vm["output-dir"].as<path>(), vm["work-dir"].as<path>()};
+	parameters.setContinueMode(vm["continue"].as<bool>());
 
 	try {
 		assureDirectoryExistsAndWritable(parameters.outputDir(), "Output");

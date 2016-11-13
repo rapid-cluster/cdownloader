@@ -37,15 +37,19 @@ namespace cdownload {
 	class ASCIIWriter: public Writer {
 		using base = Writer;
 	public:
-		ASCIIWriter(const path& fileName);
+		ASCIIWriter();
 		~ASCIIWriter();
 
 		void initialize(const std::vector<Field>& fields) override;
-
+		void open(const path & fileName) override;
 		void write(std::size_t cellNumber, const datetime& dt,
 				   const std::vector<AveragedVariable> & cells) override;
+		bool canAppend(std::size_t& lastWrittenCellNumber) override;
+		void truncate() override;
+		void writeHeader() override;
 	private:
-		std::unique_ptr<std::ostream> output_;
+		std::unique_ptr<std::fstream> output_;
+		path fileName_;
 	};
 }
 

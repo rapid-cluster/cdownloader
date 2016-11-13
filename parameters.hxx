@@ -86,6 +86,7 @@ namespace cdownload {
 		void setTimeRange(const datetime& startDate, const datetime& endDate);
 		void setTimeInterval(const timeduration& interval);
 		void setExpansionDictFile(const path& fileName);
+		void setContinueMode(bool continueDownloading);
 
 		const datetime& startDate() const
 		{
@@ -129,6 +130,10 @@ namespace cdownload {
 
 		std::vector<std::string> allDatasetNames() const;
 
+		bool continueDownloading() const {
+			return continue_;
+		}
+
 	private:
 		datetime startDate_;
 		datetime endDate_;
@@ -137,6 +142,7 @@ namespace cdownload {
 		path expansionDictionaryFile_;
 		path outputDir_;
 		path workDir_;
+		bool continue_;
 	};
 
 	std::ostream& operator<<(std::ostream& os, const Parameters& p);

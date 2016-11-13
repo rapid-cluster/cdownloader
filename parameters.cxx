@@ -90,6 +90,11 @@ void cdownload::Parameters::setTimeInterval(const timeduration& interval) {
 	timeInterval_ = interval;
 }
 
+void cdownload::Parameters::setContinueMode(bool continueDownloading) {
+	continue_ = continueDownloading;
+}
+
+
 namespace {
 	[[noreturn]]
 	void signalParsingError(const cdownload::path& fileName, std::size_t lineNo, const std::string& errorMessage)
