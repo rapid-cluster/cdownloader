@@ -275,9 +275,6 @@ void cdownload::Driver::doTask()
 		}
 
 		currentChunk = chunkDownloader.nextChunk();
-		if (currentChunk.empty()) {
-			continue;
-		}
 	}
 }
 
