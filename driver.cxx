@@ -132,7 +132,7 @@ void cdownload::Driver::doTask()
 
 	for (const auto& ds: requiredDatasets) {
 		auto dataset = meta.dataset(ds);
-		BOOST_LOG_TRIVIAL(trace) << "Time range for dataset" << dataset.name() << ": [" <<
+		BOOST_LOG_TRIVIAL(trace) << "Time range for dataset " << dataset.name() << ": [" <<
 			dataset.minTime() << ',' << dataset.maxTime() << ']';
 		if (dataset.minTime() > availableStartDateTime) {
 			availableStartDateTime = dataset.minTime();
