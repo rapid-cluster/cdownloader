@@ -249,33 +249,35 @@ void cdownload::Driver::doTask()
 		}
 	}
 
-	while (!chunkDownloader.eof()) {
-		BOOST_LOG_TRIVIAL(info) << "Processing chunk [" << currentChunk.startTime << ','
-		                        << currentChunk.endTime << ']' << std::endl;
+	do {
+		if (!currentChunk.empty()) {
+			BOOST_LOG_TRIVIAL(info) << "Processing chunk [" << currentChunk.startTime << ','
+			                        << currentChunk.endTime << ']' << std::endl;
 
-		DataReader reader {currentChunk.startTime, params_.timeInterval(), rawFilters,
-			               currentChunk.files, productsToRead, averagingCells, fields};
+			DataReader reader {currentChunk.startTime, params_.timeInterval(), rawFilters,
+			                   currentChunk.files, productsToRead, averagingCells, fields};
 
-		while (!reader.eof() && !reader.fail()) {
-			if (reader.readNextCell()) {
-				bool cellPassedFiltering = true;
-				for (const auto& filter: averageDataFilters) {
-					if (!filter->test(averagingCells)) {
-						cellPassedFiltering = false;
-						break;
+			while (!reader.eof() && !reader.fail()) {
+				if (reader.readNextCell()) {
+					bool cellPassedFiltering = true;
+					for (const auto& filter: averageDataFilters) {
+						if (!filter->test(averagingCells)) {
+							cellPassedFiltering = false;
+							break;
+						}
 					}
-				}
-				if (cellPassedFiltering) {
-					for (const std::unique_ptr<Writer>& writer: writers) {
-						writer->write(cellNo, reader.cellMidTime(), averagingCells);
+					if (cellPassedFiltering) {
+						for (const std::unique_ptr<Writer>& writer: writers) {
+							writer->write(cellNo, reader.cellMidTime(), averagingCells);
+						}
 					}
+					++cellNo;
 				}
-				++cellNo;
 			}
 		}
 
 		currentChunk = chunkDownloader.nextChunk();
-	}
+	} while (!chunkDownloader.eof());
 }
 
 std::unique_ptr<cdownload::Writer> cdownload::Driver::createWriterForOutput(const cdownload::Output& output) const
