@@ -52,7 +52,7 @@ cdownload::Chunk cdownload::ChunkDownloader::nextChunk()
 {
 	if (currentChunkStart_ > end_) {
 		eof_ = true;
-		return {};
+		return Chunk();
 	}
 
 	std::size_t maxDownloadedFileSize = 0;
