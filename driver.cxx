@@ -181,7 +181,7 @@ void cdownload::Driver::doTask()
 
 	// prepare averaging cells
 	std::vector<AveragedVariable> averagingCells;
-	std::size_t totalSize;
+	std::size_t totalSize = 0;
 	std::vector<Field> fields;
 
 	DatasetProductsMap productsToRead = parseProductsList(productsToRead_);
@@ -191,13 +191,30 @@ void cdownload::Driver::doTask()
 			fields.emplace_back(f, totalSize);
 			averagingCells.emplace_back(f.elementCount());
 			totalSize++;//d? += f.elementCount();
+
 		}
 	}
+
+	std::map<std::string,std::vector<Field>> fieldsForWriters;
+	for (const Output& o: params_.outputs()) {
+		fieldsForWriters[o.name()] = std::vector<Field>();
+		for (const std::pair<DatasetName, std::vector<ProductName>>& dsp: o.products()) {
+			for (const ProductName& pr: dsp.second) {
+				auto fi = std::find_if(fields.begin(), fields.end(), [&pr](const Field& f){
+					return f.name() == pr.name();
+				});
+				assert(fi != fields.end());
+				fieldsForWriters[o.name()].push_back(*fi);
+			}
+		}
+	}
+
+
 
 	std::vector<std::unique_ptr<Writer> > writers;
 	for (const Output& o: params_.outputs()) {
 		writers.push_back(createWriterForOutput(o));
-		writers.back()->initialize(fields);
+		writers.back()->initialize(fieldsForWriters[o.name()]);
 	}
 
 	initializeFilters(fields, rawFilters, averageDataFilters);
