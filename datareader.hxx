@@ -54,12 +54,18 @@ namespace cdownload {
 	private:
 
 		struct DataSetReadingContext {
+			DataSetReadingContext();
+			DataSetReadingContext(const DatasetName& dataset, std::unique_ptr<CDF::Reader>&& reader,
+				const std::vector<std::size_t>& indiciesInCells,
+				std::size_t timestampVariableIndex,
+				const std::vector<std::shared_ptr<RawDataFilter> >& filters);
 			DatasetName datasetName;
 			std::unique_ptr<CDF::Reader> reader;
 			std::vector<std::size_t> indiciesInCells;
 			std::size_t readRecordsCount;
 			std::size_t timestampVariableIndex;
 			double lastReadTimeStamp;
+			double lastWroteTimeStamp;
 			double lastWeight;
 // 			CDF::Info info;
 			std::vector<std::shared_ptr<RawDataFilter> > filters;

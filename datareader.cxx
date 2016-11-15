@@ -117,8 +117,8 @@ cdownload::DataReader::DataReader(const datetime& startTime, timeduration cellLe
 			}
 		}
 
-		DataSetReadingContext st {p.first, std::move(reader), variableIndicies, 0, timeStampVarIndex,
-			0., -1., filtersForDataset, false};
+		DataSetReadingContext st (p.first, std::move(reader), variableIndicies,timeStampVarIndex,
+			filtersForDataset);
 
 		readers_[p.first] = std::move(st);
 	}
@@ -168,30 +168,89 @@ bool cdownload::DataReader::readNextCell()
 	return anyCellWasReadSuccesfully;
 }
 
+namespace {
+	class Cell {
+	public:
+		Cell(double mid, double halfWidth)
+			: midEpoch_(mid)
+			, halfWidth_(halfWidth) {
+		}
+
+		static Cell fromRange(double begin, double end) {
+			assert(end >= begin);
+			return Cell((begin+end)/2, (end - begin)/2);
+		}
+
+		double begin() const {
+			return midEpoch_ - halfWidth_;
+		}
+
+		double end() const {
+			return midEpoch_ + halfWidth_;
+		}
+
+		double mid() const {
+			return midEpoch_;
+		}
+
+		double halfWidth() const {
+			return halfWidth_;
+		}
+
+		double width() const {
+			return halfWidth_ * 2;
+		}
+
+	private:
+		double midEpoch_;
+		double halfWidth_;
+	};
+
+	inline std::pair<Cell,bool> intersection(const Cell& c1, const Cell& c2)
+	{
+
+		const Cell cLower = c1.begin() < c2.begin() ? c1: c2;
+		const Cell cUpper = c1.begin() < c2.begin() ? c2: c1;
+		if (cLower.end() < cUpper.begin()) {
+			return std::make_pair(Cell{0., 0.}, false);
+		} else {
+			double min = std::max(cLower.begin(), cUpper.begin());
+			double max = std::min(cLower.end(), cUpper.end());
+			return std::make_pair(Cell::fromRange(min, max), true);
+		}
+	}
+}
+
 // this function reads next cell from the given reader (CDF file) and dumps values into the
 // averaging cells
 cdownload::DataReader::CellReadStatus
 cdownload::DataReader::readNextCell(const datetime& cellStart, cdownload::DataReader::DataSetReadingContext& ds)
 {
-	const double startEpoch = CDF::dateTimeToEpoch(cellStart);
-	const double endEpoch = CDF::dateTimeToEpoch(cellStart + cellLength_);
-	const double ourCellLength = endEpoch - startEpoch;
+	const Cell outputCell = Cell::fromRange(CDF::dateTimeToEpoch(cellStart), CDF::dateTimeToEpoch(cellStart + cellLength_));
 	double weight = 1.0; // will be later modified if the cell to be read extends
-	double epoch = 0;
+	double epoch = ds.lastReadTimeStamp;
 	do {
 		bool readOk = false;
 		do {
+			ds.lastReadTimeStamp = epoch;
 			readOk = ds.reader->readTimeStampRecord(ds.readRecordsCount++);
 			epoch = *static_cast<const double*>(ds.reader->bufferForVariable(ds.timestampVariableIndex)); // EPCH16?
-		} while ((epoch < startEpoch) && readOk); // we skip records with epoch == 0, which indicate absence of data
+		} while ((epoch < outputCell.begin()) && readOk); // we skip records with
+		// epoch == 0, which indicates absence of data
 
-		if (ds.lastWeight < 1 && ds.lastWeight > 0 &&
-			(epoch - ds.lastReadTimeStamp <= ourCellLength) // we did not skip any cell
-		) {
-			copyValuesToAveragingCells(ds, 1. - ds.lastWeight); // copy leftover of the cell, see below
+		const Cell previousDatasetCell {ds.lastWroteTimeStamp, (epoch - ds.lastReadTimeStamp)/2};
+		const Cell currentDatasetCell {epoch, (epoch - ds.lastReadTimeStamp)/2};
+		ds.lastReadTimeStamp = epoch;
+
+		std::pair<Cell,bool> intersectionWithPrevious = intersection(previousDatasetCell, outputCell);
+		std::pair<Cell,bool> intersectionWithCurrent = intersection(currentDatasetCell, outputCell);
+
+		if (ds.lastWeight < 1 && ds.lastWeight > 0 && intersectionWithPrevious.second) {// we did not skip any cell
+			// copy leftover of the cell, see below
+			copyValuesToAveragingCells(ds, intersectionWithPrevious.first.width() / outputCell.width());
 		}
 
-		readOk = ds.reader->readRecord(ds.readRecordsCount, true); // we've read timestamp already
+		readOk = ds.reader->readRecord(ds.readRecordsCount - 1, true); // we've read timestamp already
 		if (!readOk) {
 			if (ds.reader->eof()) {
 				return CellReadStatus::EoF;
@@ -200,26 +259,31 @@ cdownload::DataReader::readNextCell(const datetime& cellStart, cdownload::DataRe
 			}
 		}
 
-		const double dsCellLength = epoch - ds.lastReadTimeStamp;
-
-		if (epoch + dsCellLength > endEpoch) {
-			// compute what part of the DS cell is inside our current cell
-			weight = (endEpoch - epoch) / dsCellLength + 0.5;
-			// just return
+		// statistical weight is proportional to
+		// the fraction of the DS cell which is inside our current cell
+		weight = intersectionWithCurrent.first.width() / outputCell.width();
+		if (!(weight > 0)) {
+			ds.lastWeight = 0;
+			break;
 		}
-		ds.lastReadTimeStamp = epoch;
 
-		// the record was read successfully -> test by filters
-
+		// the record was read successfully and belongs to the current output cell -> test by filters
 		for (const auto& f: ds.filters) {
 			if (!f->test(bufferPointers_, ds.datasetName)) {
+				ds.lastWeight = 0; // this is too prevent making the current record into the next cell
 				continue;
 			}
 		}
 
+		// warning: it is important to set lastReadTimeStamp after filtering!
+		// otherwise we might consider filtered out record as valid one on the next cycle step
+
+		assert(weight > 0);
+		assert(weight <= 1.);
 		copyValuesToAveragingCells(ds, weight);
 		ds.lastWeight = weight;
-	} while (weight >= 1.);
+		ds.lastWroteTimeStamp = epoch;
+	} while (weight >= 1.); // which means that currentDatasetCell completely falls inside of outputCell
 	return CellReadStatus::PastCellEnd;
 
 // 	return true;
@@ -261,4 +325,37 @@ void cdownload::DataReader::copyValuesToAveragingCells(const cdownload::DataRead
 				throw std::runtime_error("Unexpected datatype");
 		}
 	}
+}
+
+cdownload::DataReader::DataSetReadingContext::DataSetReadingContext()
+	: datasetName()
+	, reader()
+	, indiciesInCells()
+	, readRecordsCount(0)
+	, timestampVariableIndex(0)
+	, lastReadTimeStamp(0)
+	, lastWroteTimeStamp(0)
+	, lastWeight(-1.)
+	, filters()
+	, eof(false)
+{
+}
+
+
+cdownload::DataReader::DataSetReadingContext::DataSetReadingContext(const DatasetName& aDataset,
+	std::unique_ptr<CDF::Reader> && aReader,
+	const std::vector<std::size_t>& indiciesInCellsParam,
+	std::size_t aTimestampVariableIndex,
+	const std::vector<std::shared_ptr<RawDataFilter> >& filtersParam)
+	: datasetName(aDataset)
+	, reader{std::move(aReader)}
+	, indiciesInCells(indiciesInCellsParam)
+	, readRecordsCount(0)
+	, timestampVariableIndex(aTimestampVariableIndex)
+	, lastReadTimeStamp(0)
+	, lastWroteTimeStamp(0)
+	, lastWeight(-1.)
+	, filters(filtersParam)
+	, eof(false)
+{
 }

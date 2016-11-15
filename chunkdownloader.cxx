@@ -50,6 +50,11 @@ cdownload::ChunkDownloader::ChunkDownloader(const path& tmpDir,
 
 cdownload::Chunk cdownload::ChunkDownloader::nextChunk()
 {
+	if (currentChunkStart_ > end_) {
+		eof_ = true;
+		return {};
+	}
+
 	std::size_t maxDownloadedFileSize = 0;
 	Chunk res;
 	bool downloaded = false;
@@ -101,7 +106,9 @@ cdownload::Chunk cdownload::ChunkDownloader::nextChunk()
 
 		currentChunkLength_ = newChunkLength;
 	} else {
-		eof_ = true;
+		// we are at the end, the next call to readChunk will return empty chunk and set eof flag
+		currentChunkStart_ = end_ + timeduration(0, 0, 1, 0); // 1 second
+
 	}
 
 	return res;
