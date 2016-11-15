@@ -1,0 +1,3 @@
+name=test-cis-mode
+format=ASCII
+products=cis_mode__C4_CP_CIS_MODES

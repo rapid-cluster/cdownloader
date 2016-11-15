@@ -106,7 +106,7 @@ cdownload::DataReader::DataReader(const datetime& startTime, timeduration cellLe
 				filterIsNeededForThisDS = true;
 			} else {
 				for (const auto& pr: filterProducts) {
-					if (pr.name() == p.first) {
+					if (pr.dataset() == p.first) {
 						filterIsNeededForThisDS = true;
 						break;
 					}
@@ -267,12 +267,18 @@ cdownload::DataReader::readNextCell(const datetime& cellStart, cdownload::DataRe
 			break;
 		}
 
+		bool filtersPassed = true;
 		// the record was read successfully and belongs to the current output cell -> test by filters
 		for (const auto& f: ds.filters) {
 			if (!f->test(bufferPointers_, ds.datasetName)) {
-				ds.lastWeight = 0; // this is too prevent making the current record into the next cell
-				continue;
+				filtersPassed = false;
+				break;
 			}
+		}
+
+		if (!filtersPassed) {
+			ds.lastWeight = 0; // this is too prevent making the current record into the next cell
+			continue;
 		}
 
 		// warning: it is important to set lastReadTimeStamp after filtering!
