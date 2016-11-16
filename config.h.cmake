@@ -9,4 +9,6 @@
 
 #define SYSTEM_IS_BIG_ENDIAN @SYSTEN_BIG_ENDIAN@
 
+#cmakedefine USE_BOOST_REGEX
+
 #endif // CDOWNLOADER_CONFIG_H

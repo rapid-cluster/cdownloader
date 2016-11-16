@@ -25,14 +25,22 @@
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/log/trivial.hpp>
 
+
 #include <algorithm>
-#include <regex>
 #include <stdexcept>
 #include <iostream>
 #include <set>
 #include <unistd.h>
 #include <sys/types.h>
 #include <pwd.h>
+
+#include "config.h"
+
+#ifdef USE_BOOST_REGEX
+#include <boost/regex.hpp>
+#else
+#include <regex>
+#endif
 
 cdownload::ProductName::ProductName()
 	: variableName_()
@@ -97,6 +105,7 @@ namespace {
 		boost::algorithm::replace_all(res, "?", ".");
 		boost::algorithm::replace_all(res, "\\", "\\\\");
 		boost::algorithm::replace_all(res, ":", "\\:");
+		BOOST_LOG_TRIVIAL(trace) << "Wildcard " << wildcard << " converted to regex: " << res;
 		return "^" + res + "$";
 	}
 }
@@ -126,9 +135,15 @@ cdownload::expandWildcardsCaseSensitive(const std::vector<std::string>& wildcard
 	BOOST_LOG_TRIVIAL(trace) << "Expanding wildcarded list " << put_list(wildcards) << " against " << put_list(available);
 	std::vector<std::string> res;
 	for (const string& wc: wildcards) {
+#ifdef USE_BOOST_REGEX
+		boost::regex rx(convertWildcardToRegex(wc));
+		for (const string& a: available) {
+			if (boost::regex_match(a, rx)) {
+#else
 		std::regex rx(convertWildcardToRegex(wc));
 		for (const string& a: available) {
 			if (std::regex_match(a, rx)) {
+#endif
 				res.push_back(a);
 			}
 		}

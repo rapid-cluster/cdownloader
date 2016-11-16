@@ -102,6 +102,7 @@ endif()
 option(DEBUG_METADATA_ACTIONS "Log metadata-related actions" OFF)
 option(DEBUG_DOWNLOADING_ACTIONS "Log downloader actions" OFF)
 option(DEBUG_ARCHIVE_EXTRACTING "Log archive extraction" OFF)
+option(USE_BOOST_REGEX "Use regex library from boost (std::) otherwise" OFF)
 
 option(DEBUG_ALL OFF "Turn on all the DEBUG_ options")
 if (DEBUG_ALL)
