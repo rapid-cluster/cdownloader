@@ -74,7 +74,7 @@ namespace cdownload {
 
 		enum class CellReadStatus {
 			OK,
-			PastCellEnd,
+			NoRecordsSurviedFiltering,
 			EoF,
 			ReadError
 		};

@@ -148,9 +148,11 @@ bool cdownload::DataReader::readNextCell()
 	bool anyCellWasReadSuccesfully = false;
 	for (auto& dsp: readers_) {
 		CellReadStatus cellReadStatus = readNextCell(startTime_, dsp.second);
-		anyCellWasReadSuccesfully |=
-			(cellReadStatus != CellReadStatus::EoF) &&
-			(cellReadStatus != CellReadStatus::ReadError);
+		if (cellReadStatus == CellReadStatus::NoRecordsSurviedFiltering) {
+			anyCellWasReadSuccesfully = false;
+			break;
+		}
+		anyCellWasReadSuccesfully |= (cellReadStatus == CellReadStatus::OK);
 	}
 	startTime_ += cellLength_;
 	if (!anyCellWasReadSuccesfully) {
@@ -229,6 +231,7 @@ cdownload::DataReader::readNextCell(const datetime& cellStart, cdownload::DataRe
 	const Cell outputCell = Cell::fromRange(CDF::dateTimeToEpoch(cellStart), CDF::dateTimeToEpoch(cellStart + cellLength_));
 	double weight = 1.0; // will be later modified if the cell to be read extends
 	double epoch = ds.lastReadTimeStamp;
+	bool anyRecordSurviedFiltering = false;
 	do {
 		bool readOk = false;
 		do {
@@ -279,6 +282,8 @@ cdownload::DataReader::readNextCell(const datetime& cellStart, cdownload::DataRe
 		if (!filtersPassed) {
 			ds.lastWeight = 0; // this is too prevent making the current record into the next cell
 			continue;
+		} else {
+			anyRecordSurviedFiltering = true;
 		}
 
 		// warning: it is important to set lastReadTimeStamp after filtering!
@@ -290,7 +295,7 @@ cdownload::DataReader::readNextCell(const datetime& cellStart, cdownload::DataRe
 		ds.lastWeight = weight;
 		ds.lastWroteTimeStamp = epoch;
 	} while (weight >= 1.); // which means that currentDatasetCell completely falls inside of outputCell
-	return CellReadStatus::PastCellEnd;
+	return anyRecordSurviedFiltering ? CellReadStatus::OK : CellReadStatus::NoRecordsSurviedFiltering;
 
 // 	return true;
 }
