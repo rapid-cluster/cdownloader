@@ -208,6 +208,9 @@ void cdownload::Driver::doTask()
 				auto fi = std::find_if(fields.begin(), fields.end(), [&pr](const Field& f){
 					return f.name() == pr.name();
 				});
+				if (fi == fields.end()) {
+					BOOST_LOG_TRIVIAL(error) << "Can not find product " << pr << " in fields array";
+				}
 				assert(fi != fields.end());
 				fieldsForWriters[o.name()].push_back(*fi);
 			}
