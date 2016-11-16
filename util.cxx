@@ -23,6 +23,7 @@
 #include "util.hxx"
 
 #include <boost/algorithm/string/replace.hpp>
+#include <boost/log/trivial.hpp>
 
 #include <algorithm>
 #include <regex>
@@ -120,12 +121,13 @@ cdownload::expandWildcardsCaseSensitive(const std::vector<cdownload::ProductName
 }
 
 std::vector<std::string>
-cdownload::expandWildcardsCaseSensitive(const std::vector<std::string>& wildcards, const std::vector<std::string>& avaliable)
+cdownload::expandWildcardsCaseSensitive(const std::vector<std::string>& wildcards, const std::vector<std::string>& available)
 {
+	BOOST_LOG_TRIVIAL(trace) << "Expanding wildcarded list " << put_list(wildcards) << " against " << put_list(available);
 	std::vector<std::string> res;
 	for (const string& wc: wildcards) {
 		std::regex rx(convertWildcardToRegex(wc));
-		for (const string& a: avaliable) {
+		for (const string& a: available) {
 			if (std::regex_match(a, rx)) {
 				res.push_back(a);
 			}

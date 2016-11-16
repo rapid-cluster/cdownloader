@@ -61,17 +61,19 @@ namespace {
 	}
 
 	std::vector<cdownload::Output> expandOutputs(const std::vector<cdownload::Output>& outputs,
-	                                             const std::map<cdownload::DatasetName, cdownload::CDF::Info>& avaliableProducts)
+	                                             const std::map<cdownload::DatasetName, cdownload::CDF::Info>& availableProducts)
 	{
 		using cdownload::ProductName;
 		using cdownload::Output;
 
+		assert(!availableProducts.empty());
 		std::vector<Output> res;
 		for (const Output& output: outputs) {
+			BOOST_LOG_TRIVIAL(trace) << "Expanding output: " << output;
 			std::map<std::string, std::vector<ProductName> > expandedProductsMap;
 			for (const std::string& ds: output.datasetNames()) {
-				auto i = avaliableProducts.find(ds);
-				if (i == avaliableProducts.end()) {
+				auto i = availableProducts.find(ds);
+				if (i == availableProducts.end()) {
 					throw std::runtime_error("Dataset '" + ds + "' is not present in the downloaded files");
 				}
 				std::vector<cdownload::ProductName> expandedProducts =
@@ -201,7 +203,7 @@ void cdownload::Driver::doTask()
 	BOOST_LOG_TRIVIAL(trace) << "Collected fields: " << put_list(fields);
 
 	std::map<std::string,std::vector<Field>> fieldsForWriters;
-	for (const Output& o: params_.outputs()) {
+	for (const Output& o: expandedOutputs) {
 		fieldsForWriters[o.name()] = std::vector<Field>();
 		for (const std::pair<DatasetName, std::vector<ProductName>>& dsp: o.products()) {
 			for (const ProductName& pr: dsp.second) {
@@ -355,6 +357,7 @@ cdownload::Driver::collectAllProductsToRead(const std::map<cdownload::DatasetNam
 {
 	ProductsToRead res;
 	for (const Output& o: outputs) {
+		assert(!o.products().empty());
 		for (const auto& dsPrPair: o.products()) {
 			auto i = available.find(dsPrPair.first);
 			if (i == available.end()) {

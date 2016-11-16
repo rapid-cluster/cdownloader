@@ -146,6 +146,7 @@ namespace cdownload {
 	};
 
 	std::ostream& operator<<(std::ostream& os, const Parameters& p);
+	std::ostream& operator<<(std::ostream& os, const Output& o);
 }
 
 #endif // CDOWNLOAD_PARAMETERS_H

@@ -250,6 +250,18 @@ std::vector<std::string> cdownload::Parameters::allDatasetNames() const
 	return res;
 }
 
+namespace {
+	void printOutput(std::ostream& os, const cdownload::Output& o,
+		             const std::string& fieldDelim, const std::string& ident)
+	{
+		os << ident << "Name: " << o.name() << fieldDelim
+				<< ident << "Format: ";
+			printFormat(os, o.format());
+			os << fieldDelim
+				<< ident <<"Products: " << put_list(expandProductsMap(o.products())) << std::endl;
+	}
+}
+
 std::ostream& cdownload::operator<<(std::ostream& os, const cdownload::Parameters& p)
 {
 	os << "Output dir: " << p.outputDir() << std::endl
@@ -258,12 +270,16 @@ std::ostream& cdownload::operator<<(std::ostream& os, const cdownload::Parameter
 		<< "Interval: " << p.timeInterval() << std::endl
 		<< "Outputs:" << std::endl;
 		for (const Output& o: p.outputs()) {
-			os << "\tName: " << o.name() << std::endl
-				<< "\tFormat: ";
-			printFormat(os, o.format());
-			os << std::endl
-				<< "\tProducts: " << put_list(expandProductsMap(o.products())) << std::endl;
+			printOutput(os, o, "\n", "\t");
 		}
 	return os;
 }
+
+
+std::ostream & cdownload::operator<<(std::ostream& os, const cdownload::Output& o)
+{
+	printOutput(os, o, "\t", "");
+	return os;
+}
+
 
