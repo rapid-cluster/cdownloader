@@ -133,6 +133,8 @@ cdownload::expandWildcardsCaseSensitive(const std::vector<std::string>& wildcard
 			}
 		}
 	}
+	BOOST_LOG_TRIVIAL(trace) << "Expanded list " << put_list(res);
+
 	return res;
 }
 
