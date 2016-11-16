@@ -164,6 +164,8 @@ void cdownload::Driver::doTask()
 	datasetsToLoad_.clear();
 
 	ProductsToRead fieldsToRead = collectAllProductsToRead(availableProducts, expandedOutputs, allFilters);
+	BOOST_LOG_TRIVIAL(trace) << "Fields to read (write): " << put_list(fieldsToRead.productsToWrite);
+	BOOST_LOG_TRIVIAL(trace) << "Fields to read (filter): " << put_list(fieldsToRead.productsForFiltersOnly);
 
 	std::set<DatasetName> datasets;
 	for (const auto& pr: fieldsToRead.productsToWrite) {
@@ -178,6 +180,8 @@ void cdownload::Driver::doTask()
 
 	std::copy(datasets.begin(), datasets.end(), std::back_inserter(datasetsToLoad_));
 	BOOST_LOG_TRIVIAL(info) << "the following datasets will be downloaded: " << put_list(datasetsToLoad_);
+	BOOST_LOG_TRIVIAL(trace) << "the following products will be read: " << put_list(productsToRead_);
+
 
 	// prepare averaging cells
 	std::vector<AveragedVariable> averagingCells;
@@ -191,9 +195,10 @@ void cdownload::Driver::doTask()
 			fields.emplace_back(f, totalSize);
 			averagingCells.emplace_back(f.elementCount());
 			totalSize++;//d? += f.elementCount();
-
 		}
 	}
+
+	BOOST_LOG_TRIVIAL(trace) << "Collected fields: " << put_list(fields);
 
 	std::map<std::string,std::vector<Field>> fieldsForWriters;
 	for (const Output& o: params_.outputs()) {
@@ -209,7 +214,7 @@ void cdownload::Driver::doTask()
 		}
 	}
 
-
+	BOOST_LOG_TRIVIAL(debug) << "Creating writers";
 
 	std::vector<std::unique_ptr<Writer> > writers;
 	for (const Output& o: params_.outputs()) {
@@ -250,6 +255,7 @@ void cdownload::Driver::doTask()
 			}
 		}
 
+		BOOST_LOG_TRIVIAL(debug) << "Appending to output files seems possible";
 		// everything seems to be OK, then:
 		// 1. fast-forward cellNo
 		cellNo = lastCellNumbers[0] + 1;
@@ -260,6 +266,7 @@ void cdownload::Driver::doTask()
 		// 3. ...and download it
 		currentChunk = chunkDownloader.nextChunk();
 	} else {
+		BOOST_LOG_TRIVIAL(debug) << "Truncating output files";
 		for (auto& writer: writers) {
 			writer->truncate();
 			writer->writeHeader();
