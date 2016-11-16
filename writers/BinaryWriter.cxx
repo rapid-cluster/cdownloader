@@ -108,8 +108,8 @@ void cdownload::BinaryWriter::write(std::size_t cellNumber, const datetime& dt,
 		std::size_t count;
 		double stdDev;
 	};
-	for (std::size_t i = 0; i< numOfCellsToWrite(); ++i) {
-		const AveragedVariable& av = cells[i];
+	for (const Field& f: fields()) {
+		const AveragedVariable& av = f.data(cells);
 		for (const AveragingRegister& ac: av) {
 			CellValues cv {ac.mean(), ac.count(),  ac.stdDev()};
 			std::fwrite(&cv, sizeof(cv), 1, output_.get());

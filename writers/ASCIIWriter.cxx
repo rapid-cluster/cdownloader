@@ -51,8 +51,8 @@ void cdownload::ASCIIWriter::write(std::size_t cellNumber, const datetime& dt,
 	using namespace cdownload::csa_time_formatting;
 
 	(*output_) << cellNumber << '\t' << dt;
-	for (std::size_t i = 0; i< numOfCellsToWrite(); ++i) {
-		const AveragedVariable& av = cells[i];
+	for (const Field& f: fields()) {
+		const AveragedVariable& av = f.data(cells);
 		for (const AveragingRegister& ac: av) {
 			(*output_) << '\t' << ac.mean() << '\t' << ac.count() << '\t' << ac.stdDev();
 		}
