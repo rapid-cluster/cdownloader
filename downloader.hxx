@@ -27,9 +27,16 @@
 
 #include <json/value.h>
 
+#include <boost/signals2/signal.hpp>
+
+#include <condition_variable>
 #include <iosfwd>
+#include <map>
+#include <memory>
+#include <mutex>
 #include <string>
 #include <stdexcept>
+#include <thread>
 #include <vector>
 
 
@@ -38,18 +45,60 @@
  */
 
 namespace cdownload {
+	namespace curl {
 
-	/**
-	 * @brief Utility class for accessing the CSA archive
-	 *
-	 * This class loads CSACOOKIE and does HTTP requests via libcurl
-	 *
-	 */
-	class CSADownloader {
+	class RunningRequest {
 	public:
-		CSADownloader(bool addCookie = true);
-		~CSADownloader();
-		void downloadData(const std::string& url, std::ostream& output) const;
+
+		void scheduleCancelling();
+		boost::signals2::signal<void (const RunningRequest*)> cancelled;
+		boost::signals2::signal<void (RunningRequest*)> completed;
+
+		~RunningRequest();
+
+		void beginDownloading(std::ostream& output);
+		int httpStatusCode() const;
+		bool completedSuccefully() const;
+
+		void waitForFinished();
+
+		const std::string url() const {
+			return url_;
+		}
+		const std::string errorMessage() const {
+			return errorMessage_;
+		}
+
+		bool isCompleted() const {
+			return completed_;
+		}
+	private:
+		RunningRequest(const std::string& url);
+
+		void download(std::ostream& output);
+
+		static size_t curlWriteCallback(char* ptr, size_t size, size_t nmemb, void* userdata);
+
+		typedef void CURL;
+		CURL* session_ = nullptr;
+		bool scheduleCancellation_ = false;
+		bool completed_= false;
+		bool completedSuccefully_ = false;
+		std::string errorMessage_;
+		std::thread downloadingThread_;
+		long httpStatusCode_;
+		std::string url_;
+		friend class DownloadManager;
+	};
+
+	class DownloadManager {
+	public:
+		DownloadManager();
+		virtual ~DownloadManager();
+
+		using RunningRequestSharedPtr = std::shared_ptr<RunningRequest>;
+		using RunningRequestWeakPtr = std::weak_ptr<RunningRequest>;
+
 
 		class DownloadError: public std::runtime_error {
 		public:
@@ -68,25 +117,49 @@ namespace cdownload {
 			int httpStatusCode_;
 		};
 
+
+		RunningRequestWeakPtr beginDownloading(const std::string& url, std::ostream& output);
+		void cancelAllRequests();
+		void waitForFinished();
+	private:
+		void requestCompleted(RunningRequest* request);
+		bool removeCompletedRequests();
+		virtual std::string decorateUrl(const std::string& url) const;
+
+		std::map<std::string, RunningRequestSharedPtr> activeRequests_;
+		std::mutex requestsMutex_;
+		std::condition_variable requestsCV_;
+	};
+	}
+
+
+	/**
+	 * @brief Utility class for accessing the CSA archive
+	 *
+	 * This class loads CSACOOKIE and does HTTP requests via libcurl
+	 *
+	 */
+	class CSADownloader: public curl::DownloadManager {
+	public:
+		CSADownloader(bool addCookie = true);
+
 		std::string encode(const std::string& s) const;
 
 	private:
-		static size_t curlWriteCallback(char* ptr, size_t size, size_t nmemb, void* userdata);
+		std::string decorateUrl(const std::string & url) const override;
 		bool addCookie_;
 		std::string cookie_;
-		typedef void CURL;
-		CURL* session_;
 	};
 
 	/**
 	 * @brief Encapsulates data downloading via synchronous requests
 	 *
 	 */
-	class DataDownloader: protected CSADownloader {
+	class DataDownloader: public CSADownloader {
 	public:
 		DataDownloader() = default;
-		void download(const std::string& datasetName, std::ostream& output,
-		              const datetime& startDate, const datetime& endDate) const;
+		void beginDownloading(const std::string& datasetName, std::ostream& output,
+		              const datetime& startDate, const datetime& endDate);
 
 	private:
 		std::string buildRequest(const std::string& datasetName,
@@ -99,11 +172,11 @@ namespace cdownload {
 	 * @brief Encapsulates metadata downloading
 	 *
 	 */
-	class MetadataDownloader: protected CSADownloader {
+	class MetadataDownloader: public CSADownloader {
 	public:
 		MetadataDownloader();
 		std::vector<DatasetName> downloadDatasetsList();
-		Json::Value download(const std::vector<DatasetName>& datasets, const std::vector<std::string>& fields) const;
+		Json::Value download(const std::vector<DatasetName>& datasets, const std::vector<std::string>& fields);
 
 	private:
 		static void writeConditions(std::ostream& os,

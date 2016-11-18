@@ -53,7 +53,7 @@ namespace cdownload {
 	 */
 	class ChunkDownloader {
 	public:
-		ChunkDownloader(const path& tmpDir, const DataDownloader& downloader,
+		ChunkDownloader(const path& tmpDir, DataDownloader& downloader,
 		                const std::vector<DatasetName>& datasets,
 		                const datetime& startTime, const datetime& endTime);
 
@@ -65,7 +65,7 @@ namespace cdownload {
 		downloadChunk(const datetime& startTime, const timeduration& duration,
 		              std::size_t& maxDownloadedFileSize);
 
-		const DataDownloader& downloader_;
+		DataDownloader& downloader_;
 		std::vector<DatasetName> datasets_;
 		path tmpDir_;
 		datetime start_, end_;

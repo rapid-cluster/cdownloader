@@ -26,6 +26,7 @@
 #include <iomanip>
 #include <memory>
 #include <sstream>
+#include <thread>
 #include <ctime>
 
 #include <boost/algorithm/string/join.hpp>
@@ -42,6 +43,181 @@ const char* cdownload::DataDownloader::DATASET_ID_PARAMETER_NAME = "DATASET_ID";
 const char* cdownload::MetadataDownloader::DATASET_ID_QUERY_PARAMETER = "DATASET.DATASET_ID";
 
 #include "config.h"
+
+namespace {
+		struct RunningRequestUserData {
+		RunningRequestUserData(std::ostream& s, const cdownload::curl::RunningRequest* r )
+			: os(s)
+			, request(r)
+		{
+		}
+
+		std::ostream& os;
+		const cdownload::curl::RunningRequest* request;
+	};
+}
+
+cdownload::curl::DownloadManager::DownloadManager()
+{
+	curl_global_init(CURL_GLOBAL_ALL);
+}
+
+cdownload::curl::DownloadManager::~DownloadManager()
+{
+	cancelAllRequests();
+}
+
+std::string cdownload::curl::DownloadManager::decorateUrl(const std::string& url) const
+{
+	return url;
+}
+
+cdownload::curl::DownloadManager::RunningRequestWeakPtr
+cdownload::curl::DownloadManager::beginDownloading(const std::string& url, std::ostream& output)
+{
+	const std::string requestUrl = decorateUrl(url);
+	std::unique_lock<std::mutex> lk(requestsMutex_);
+	auto i = activeRequests_.find(requestUrl);
+	if (i != activeRequests_.end()) {
+		throw std::logic_error("Url '" + requestUrl + " is downloaded already");
+	}
+	RunningRequestSharedPtr request(new RunningRequest(requestUrl));
+	activeRequests_[requestUrl] = request;
+	request->completed.connect([this](RunningRequest* request){
+		this->requestCompleted(request);
+	});
+	request->beginDownloading(output);
+	return RunningRequestWeakPtr(request);
+}
+
+void cdownload::curl::DownloadManager::requestCompleted(cdownload::curl::RunningRequest* /*request*/)
+{
+// 	request->downloadingThread_.join();
+// 	std::unique_lock<std::mutex> lk (requestsMutex_);
+// 	activeRequests_.erase(request->url());
+	requestsCV_.notify_one();
+}
+
+void cdownload::curl::DownloadManager::cancelAllRequests()
+{
+	for (auto& p: activeRequests_) {
+		p.second->scheduleCancelling();
+	}
+	waitForFinished();
+}
+
+bool cdownload::curl::DownloadManager::removeCompletedRequests()
+{
+	for (auto it = activeRequests_.begin(); it != activeRequests_.end(); ++it) {
+		if (it->second->isCompleted()) {
+			if (it->second->downloadingThread_.joinable()) {
+				it->second->downloadingThread_.join();
+			}
+			RunningRequestSharedPtr rq = it->second;
+			if (rq->completedSuccefully()) {
+				constexpr const long HTTP_CODE_NO_ERROR = 200;
+				if (rq->httpStatusCode() != HTTP_CODE_NO_ERROR) {
+					throw HTTPError(rq->url(), rq->httpStatusCode());
+				}
+			} else {
+				throw DownloadError(rq->url(), rq->errorMessage());
+			}
+			activeRequests_.erase(it);
+			if (activeRequests_.empty()) {
+				break;
+			} else {
+				it = activeRequests_.begin();
+			}
+		}
+	}
+	return activeRequests_.empty();
+}
+
+
+void cdownload::curl::DownloadManager::waitForFinished()
+{
+	std::unique_lock<std::mutex> lk(requestsMutex_);
+	requestsCV_.wait(lk, [this](){return this->removeCompletedRequests();});
+}
+
+
+
+cdownload::curl::RunningRequest::RunningRequest(const std::string& url)
+	: url_(url)
+{
+}
+
+cdownload::curl::RunningRequest::~RunningRequest()
+{
+}
+
+int cdownload::curl::RunningRequest::httpStatusCode() const
+{
+	return httpStatusCode_;
+}
+
+bool cdownload::curl::RunningRequest::completedSuccefully() const
+{
+	return completedSuccefully_;
+}
+
+void cdownload::curl::RunningRequest::waitForFinished()
+{
+	downloadingThread_.join();
+}
+
+void cdownload::curl::RunningRequest::beginDownloading(std::ostream& output)
+{
+	downloadingThread_ = std::thread([this,&output](){
+		this->download(output);
+	});
+}
+
+void cdownload::curl::RunningRequest::download(std::ostream& output)
+{
+	completedSuccefully_ = false;
+	session_ = curl_easy_init();
+	if (!session_) {
+		throw std::runtime_error("Error initializing CURL");
+	}
+	curl_easy_setopt(session_, CURLOPT_WRITEFUNCTION, &RunningRequest::curlWriteCallback);
+	RunningRequestUserData userData {output, this};
+
+	curl_easy_setopt(session_, CURLOPT_URL, url_.c_str());
+	curl_easy_setopt(session_, CURLOPT_WRITEDATA, &userData);
+#ifdef DEBUG_DOWNLOADING_ACTIONS
+	BOOST_LOG_TRIVIAL(debug) << "Downloading data from url " << url_;
+#endif
+	CURLcode curl_status_code = curl_easy_perform(session_);
+	if (curl_status_code != CURLE_OK) {
+		errorMessage_ = std::string(curl_easy_strerror(curl_status_code));
+	} else {
+		completedSuccefully_ = true;
+	}
+	curl_easy_getinfo(session_, CURLINFO_RESPONSE_CODE, &httpStatusCode_);
+	curl_easy_cleanup(session_);
+	completed_ = true;
+	completed(this);
+}
+
+size_t cdownload::curl::RunningRequest::curlWriteCallback(char* ptr, size_t size, size_t nmemb, void* userdata)
+{
+	RunningRequestUserData* cud = static_cast<RunningRequestUserData*>(userdata);
+	if (cud->request->scheduleCancellation_) {
+		return 0; // which will tell CURL to cancel downloading
+	}
+	cud->os.write(ptr, static_cast<std::streamsize>(size * nmemb));
+	if (cud->os) {
+		return size * nmemb;
+	} else {
+		return 0;
+	}
+}
+
+void cdownload::curl::RunningRequest::scheduleCancelling()
+{
+	scheduleCancellation_ = true;
+}
 
 namespace {
 	std::string readCookie()
@@ -72,44 +248,15 @@ namespace {
 cdownload::CSADownloader::CSADownloader(bool addCookie)
 	: addCookie_{addCookie}
 	, cookie_(addCookie_ ? readCookie() : std::string())
-	, session_{curl_easy_init()}
 {
-	if (!session_) {
-		throw std::runtime_error("Error initializing CURL");
-	}
-	curl_easy_setopt(session_, CURLOPT_WRITEFUNCTION, &CSADownloader::curlWriteCallback);
 }
 
-cdownload::CSADownloader::~CSADownloader()
+std::string cdownload::CSADownloader::decorateUrl(const std::string& url) const
 {
-	curl_easy_cleanup(session_);
+	return addCookie_ ? url + "&CSACOOKIE=" + cookie_ : url;
 }
 
-void cdownload::CSADownloader::downloadData(const std::string& url, std::ostream& output) const
-{
-	std::string requestUrl = addCookie_ ? url + "&CSACOOKIE=" + cookie_ : url;
-#ifdef DEBUG_DOWNLOADING_ACTIONS
-	BOOST_LOG_TRIVIAL(debug) << "Downloading data from url " << requestUrl;
-#endif
-
-	CurlUserData userData {output};
-
-	curl_easy_setopt(session_, CURLOPT_URL, requestUrl.c_str());
-	curl_easy_setopt(session_, CURLOPT_WRITEDATA, &userData);
-
-	CURLcode curl_status_code = curl_easy_perform(session_);
-	if (curl_status_code != CURLE_OK) {
-		throw DownloadError(requestUrl, "Downloading unsuccessful");
-	}
-	long httpCode = 0;
-	curl_easy_getinfo (session_, CURLINFO_RESPONSE_CODE, &httpCode);
-	constexpr const long HTTP_CODE_NO_ERROR = 200;
-	if (httpCode != HTTP_CODE_NO_ERROR) {
-		BOOST_LOG_TRIVIAL(info) << "HTTP request returned code " << httpCode;
-		throw HTTPError(requestUrl, httpCode);
-	}
-}
-
+#if 0
 namespace {
 	struct CURLDeleter {
 		void operator()(void* ptr) const
@@ -124,22 +271,12 @@ std::string cdownload::CSADownloader::encode(const std::string& s) const
 	std::unique_ptr<char, CURLDeleter> output {curl_easy_escape(session_, s.c_str(), s.size())};
 	return output ? std::string(output.get()) : std::string();
 }
+#endif
 
-size_t cdownload::CSADownloader::curlWriteCallback(char* ptr, size_t size, size_t nmemb, void* userdata)
-{
-	CurlUserData* cud = static_cast<CurlUserData*>(userdata);
-	cud->os.write(ptr, static_cast<std::streamsize>(size * nmemb));
-	if (cud->os) {
-		return size * nmemb;
-	} else {
-		return 0;
-	}
-}
-
-void cdownload::DataDownloader::download(const std::string& datasetName, std::ostream& output, const datetime& startDate, const datetime& endDate) const
+void cdownload::DataDownloader::beginDownloading(const std::string& datasetName, std::ostream& output, const datetime& startDate, const datetime& endDate)
 {
 	std::string requestUrl = this->buildRequest(datasetName, startDate, endDate);
-	downloadData(requestUrl, output);
+	CSADownloader::beginDownloading(requestUrl, output);
 }
 
 std::string cdownload::DataDownloader::buildRequest(const std::string& datasetName, const datetime& startDate, const datetime& endDate) const
@@ -194,7 +331,8 @@ std::vector<cdownload::DatasetName> cdownload::MetadataDownloader::downloadDatas
 	BOOST_LOG_TRIVIAL(debug) << "Downloading datasets list from url " << url;
 #endif
 	std::ostringstream dataStream;
-	downloadData(url, dataStream);
+	beginDownloading(url, dataStream);
+	waitForFinished();
 	std::string data = dataStream.str();
 
 #ifdef DEBUG_DOWNLOADING_ACTIONS
@@ -215,7 +353,7 @@ std::vector<cdownload::DatasetName> cdownload::MetadataDownloader::downloadDatas
 }
 
 Json::Value cdownload::MetadataDownloader::download(const std::vector<DatasetName>& datasets,
-                                                    const std::vector<std::string>& fields) const
+                                                    const std::vector<std::string>& fields)
 {
 
 	std::string url = METADATA_DOWNLOAD_BASE_URL + "?RETURN_TYPE=JSON&RESOURCE_CLASS=DATASET&NON_BROWSER&SELECTED_FIELDS=" +
@@ -232,7 +370,8 @@ Json::Value cdownload::MetadataDownloader::download(const std::vector<DatasetNam
 	BOOST_LOG_TRIVIAL(debug) << "Downloading metadata from url " << url;
 #endif
 	std::ostringstream dataStream;
-	downloadData(url, dataStream);
+	beginDownloading(url, dataStream);
+	waitForFinished();
 	std::string data = dataStream.str();
 #ifdef DEBUG_DOWNLOADING_ACTIONS
 	BOOST_LOG_TRIVIAL(debug) << "Downloaded metadata: " << data;
@@ -304,12 +443,12 @@ void cdownload::MetadataDownloader::writeConditions(std::ostream& os, const std:
 	os << put_list(expressions, ' ' + operation + ' ', "", "");
 }
 
-cdownload::CSADownloader::DownloadError::DownloadError(const std::string& url, const std::string& message)
+cdownload::curl::DownloadManager::DownloadError::DownloadError(const std::string& url, const std::string& message)
 	: std::runtime_error(message + " : Error occurred while downloading data from URL " + url)
 {
 }
 
-cdownload::CSADownloader::HTTPError::HTTPError(const std::string& url, int httpStatusCode)
+cdownload::curl::DownloadManager::HTTPError::HTTPError(const std::string& url, int httpStatusCode)
 	: DownloadError(url, std::string("HTTP request returned status ")
 		+ boost::lexical_cast<std::string>(httpStatusCode))
 	, httpStatusCode_{httpStatusCode}

@@ -33,7 +33,7 @@
 #include <fstream>
 
 cdownload::ChunkDownloader::ChunkDownloader(const path& tmpDir,
-                                            const cdownload::DataDownloader& downloader,
+                                            cdownload::DataDownloader& downloader,
                                             const std::vector<DatasetName>& datasets,
                                             const datetime& startTime, const datetime& endTime)
 	: downloader_(downloader)
@@ -65,7 +65,8 @@ cdownload::Chunk cdownload::ChunkDownloader::nextChunk()
 		try {
 			res.files = downloadChunk(currentChunkStart_, currentChunkLength_, maxDownloadedFileSize);
 			downloaded = true;
-		} catch (CSADownloader::HTTPError& er) {
+		} catch (curl::DownloadManager::HTTPError& er) {
+			downloader_.cancelAllRequests();
 			// there might be error 413 (Request Entity Too Large), we decrease chunk length then
 			if (er.httpStatusCode() == 413 || er.httpStatusCode() == 502) {
 				// So, we have to decrease the chunk length, but, if the chunk is shorter than
@@ -128,6 +129,8 @@ cdownload::ChunkDownloader::downloadChunk(const datetime& startTime, const timed
 	// as total number of seconds from the start_
 	const std::string chunkId = boost::lexical_cast<std::string>((startTime - start_).total_seconds());
 
+	std::vector<path> outputFileNames;
+	std::vector<std::unique_ptr<std::ofstream>> outputStreams;
 	for (auto ds: datasets_) {
 		BOOST_LOG_TRIVIAL(trace) << "Downloading dataset '" << ds << '\'';
 		auto destFileName = tmpDir_ / (ds + '_' + chunkId + '_' + ".tar.gz");
@@ -136,17 +139,24 @@ cdownload::ChunkDownloader::downloadChunk(const datetime& startTime, const timed
 			boost::filesystem::remove(destFileName);
 		}
 
-		{
-			std::ofstream of {destFileName.c_str()};
-			downloader_.download(ds, of, startTime, startTime + duration);
-		}
+		outputFileNames.push_back(destFileName);
+		outputStreams.emplace_back(new std::ofstream(destFileName.c_str()));
+		downloader_.beginDownloading(ds, *outputStreams.back(), startTime, startTime + duration);
+	}
+
+	downloader_.waitForFinished();
+	outputStreams.clear();
+
+	auto itFileNames = outputFileNames.begin();
+	auto itDatasets = datasets_.begin();
+	for (; itFileNames != outputFileNames.end() && itDatasets != datasets_.end(); ++itFileNames, ++itDatasets) {
+		const path& destFileName = *itFileNames;
 		boost::uintmax_t curFileSize = boost::filesystem::file_size(destFileName);
 		if (curFileSize > maxFileSize) {
 			maxFileSize = curFileSize;
 		}
-		res[ds] = DownloadedProductFile(destFileName, tmpDir_, ds);
+		res[*itDatasets] = DownloadedProductFile(destFileName, tmpDir_, *itDatasets);
 	}
-
 	maxDownloadedFileSize = maxFileSize;
 	return res;
 }
