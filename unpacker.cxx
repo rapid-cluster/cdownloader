@@ -48,8 +48,10 @@ copy_data(struct archive *ar, struct archive *aw)
 		r = archive_read_data_block(ar, &buff, &size, &offset);
 		if (r == ARCHIVE_EOF)
 			return (ARCHIVE_OK);
-		if (r != ARCHIVE_OK)
+		if (r != ARCHIVE_OK) {
+			BOOST_LOG_TRIVIAL(warning) << "archive_read_data_block()" << archive_error_string(ar) << std::endl;
 			return (r);
+		}
 		r = archive_write_data_block(aw, buff, size, offset);
 		if (r != ARCHIVE_OK) {
 			BOOST_LOG_TRIVIAL(warning) << "archive_write_data_block()" << archive_error_string(aw) << std::endl;
