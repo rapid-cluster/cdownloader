@@ -170,7 +170,6 @@ void cdownload::Driver::doTask()
 	BOOST_LOG_TRIVIAL(trace) << "Fields to read (filter): " << put_list(fieldsToRead.productsForFiltersOnly);
 
 	assert(!fieldsToRead.productsToWrite.empty());
-	assert(!fieldsToRead.productsForFiltersOnly.empty());
 
 	std::set<DatasetName> datasets;
 	for (const auto& pr: fieldsToRead.productsToWrite) {
