@@ -29,6 +29,7 @@
 
 #include <boost/signals2/signal.hpp>
 
+#include <atomic>
 #include <condition_variable>
 #include <iosfwd>
 #include <map>
@@ -129,6 +130,8 @@ namespace cdownload {
 		std::map<std::string, RunningRequestSharedPtr> activeRequests_;
 		std::mutex requestsMutex_;
 		std::condition_variable requestsCV_;
+		std::atomic<bool> ignoreDownloadingErrors_;
+		std::atomic<std::size_t> completedRequests_;
 	};
 	}
 

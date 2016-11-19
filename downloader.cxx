@@ -60,6 +60,7 @@ namespace {
 cdownload::curl::DownloadManager::DownloadManager()
 {
 	curl_global_init(CURL_GLOBAL_ALL);
+	completedRequests_ = 0;
 }
 
 cdownload::curl::DownloadManager::~DownloadManager()
@@ -75,6 +76,7 @@ std::string cdownload::curl::DownloadManager::decorateUrl(const std::string& url
 cdownload::curl::DownloadManager::RunningRequestWeakPtr
 cdownload::curl::DownloadManager::beginDownloading(const std::string& url, std::ostream& output)
 {
+	ignoreDownloadingErrors_ = false;
 	const std::string requestUrl = decorateUrl(url);
 	std::unique_lock<std::mutex> lk(requestsMutex_);
 	auto i = activeRequests_.find(requestUrl);
@@ -92,14 +94,16 @@ cdownload::curl::DownloadManager::beginDownloading(const std::string& url, std::
 
 void cdownload::curl::DownloadManager::requestCompleted(cdownload::curl::RunningRequest* /*request*/)
 {
+	completedRequests_++;
 // 	request->downloadingThread_.join();
-// 	std::unique_lock<std::mutex> lk (requestsMutex_);
+	std::unique_lock<std::mutex> lk (requestsMutex_);
 // 	activeRequests_.erase(request->url());
 	requestsCV_.notify_one();
 }
 
 void cdownload::curl::DownloadManager::cancelAllRequests()
 {
+	ignoreDownloadingErrors_ = true;
 	for (auto& p: activeRequests_) {
 		p.second->scheduleCancelling();
 	}
@@ -108,25 +112,27 @@ void cdownload::curl::DownloadManager::cancelAllRequests()
 
 bool cdownload::curl::DownloadManager::removeCompletedRequests()
 {
-	for (auto it = activeRequests_.begin(); it != activeRequests_.end(); ++it) {
-		if (it->second->isCompleted()) {
-			if (it->second->downloadingThread_.joinable()) {
-				it->second->downloadingThread_.join();
-			}
-			RunningRequestSharedPtr rq = it->second;
-			if (rq->completedSuccefully()) {
-				constexpr const long HTTP_CODE_NO_ERROR = 200;
-				if (rq->httpStatusCode() != HTTP_CODE_NO_ERROR) {
-					throw HTTPError(rq->url(), rq->httpStatusCode());
+// 	std::unique_lock<std::mutex> lk(requestsMutex_);
+	while(completedRequests_ > 0 && !activeRequests_.empty()) {
+		for (auto it = activeRequests_.begin(); it != activeRequests_.end(); ++it) {
+			if (it->second->isCompleted()) {
+				if (it->second->downloadingThread_.joinable()) {
+					it->second->downloadingThread_.join();
 				}
-			} else {
-				throw DownloadError(rq->url(), rq->errorMessage());
-			}
-			activeRequests_.erase(it);
-			if (activeRequests_.empty()) {
+				RunningRequestSharedPtr rq = it->second;
+				if (!ignoreDownloadingErrors_) {
+					if (rq->completedSuccefully()) {
+						constexpr const long HTTP_CODE_NO_ERROR = 200;
+						if (rq->httpStatusCode() != HTTP_CODE_NO_ERROR) {
+							throw HTTPError(rq->url(), rq->httpStatusCode());
+						}
+					} else {
+						throw DownloadError(rq->url(), rq->errorMessage());
+					}
+				}
+				activeRequests_.erase(it);
+				completedRequests_--;
 				break;
-			} else {
-				it = activeRequests_.begin();
 			}
 		}
 	}
@@ -139,8 +145,6 @@ void cdownload::curl::DownloadManager::waitForFinished()
 	std::unique_lock<std::mutex> lk(requestsMutex_);
 	requestsCV_.wait(lk, [this](){return this->removeCompletedRequests();});
 }
-
-
 
 cdownload::curl::RunningRequest::RunningRequest(const std::string& url)
 	: url_(url)
