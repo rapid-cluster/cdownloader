@@ -28,6 +28,7 @@
 #include <sstream>
 #include <thread>
 #include <ctime>
+#include <type_traits>
 
 #include <boost/algorithm/string/join.hpp>
 #include <boost/algorithm/string/replace.hpp>
@@ -60,7 +61,6 @@ namespace {
 cdownload::curl::DownloadManager::DownloadManager()
 {
 	curl_global_init(CURL_GLOBAL_ALL);
-	completedRequests_ = 0;
 }
 
 cdownload::curl::DownloadManager::~DownloadManager()
@@ -78,25 +78,22 @@ cdownload::curl::DownloadManager::beginDownloading(const std::string& url, std::
 {
 	ignoreDownloadingErrors_ = false;
 	const std::string requestUrl = decorateUrl(url);
-	std::unique_lock<std::mutex> lk(requestsMutex_);
+	std::unique_lock<std::mutex> lk(activeRequestsMutex_);
 	auto i = activeRequests_.find(requestUrl);
 	if (i != activeRequests_.end()) {
 		throw std::logic_error("Url '" + requestUrl + " is downloaded already");
 	}
-	RunningRequestSharedPtr request(new RunningRequest(requestUrl));
+	RunningRequestSharedPtr request(new RunningRequest(requestUrl, this));
 	activeRequests_[requestUrl] = request;
-	request->completed.connect([this](RunningRequest* request){
-		this->requestCompleted(request);
-	});
 	request->beginDownloading(output);
 	return RunningRequestWeakPtr(request);
 }
 
-void cdownload::curl::DownloadManager::requestCompleted(cdownload::curl::RunningRequest* /*request*/)
+void cdownload::curl::DownloadManager::requestCompleted(cdownload::curl::RunningRequest* request)
 {
-	completedRequests_++;
+	std::unique_lock<std::mutex> lk (completedRequestsMutex_);
+	completedRequests_.push_back(request->url());
 // 	request->downloadingThread_.join();
-	std::unique_lock<std::mutex> lk (requestsMutex_);
 // 	activeRequests_.erase(request->url());
 	requestsCV_.notify_one();
 }
@@ -112,42 +109,40 @@ void cdownload::curl::DownloadManager::cancelAllRequests()
 
 bool cdownload::curl::DownloadManager::removeCompletedRequests()
 {
-// 	std::unique_lock<std::mutex> lk(requestsMutex_);
-	while(completedRequests_ > 0 && !activeRequests_.empty()) {
-		for (auto it = activeRequests_.begin(); it != activeRequests_.end(); ++it) {
-			if (it->second->isCompleted()) {
-				if (it->second->downloadingThread_.joinable()) {
-					it->second->downloadingThread_.join();
-				}
-				RunningRequestSharedPtr rq = it->second;
-				if (!ignoreDownloadingErrors_) {
-					if (rq->completedSuccefully()) {
-						constexpr const long HTTP_CODE_NO_ERROR = 200;
-						if (rq->httpStatusCode() != HTTP_CODE_NO_ERROR) {
-							throw HTTPError(rq->url(), rq->httpStatusCode());
-						}
-					} else {
-						throw DownloadError(rq->url(), rq->errorMessage());
-					}
-				}
-				activeRequests_.erase(it);
-				completedRequests_--;
-				break;
+	std::unique_lock<std::mutex> lk(completedRequestsMutex_);
+	for (const auto& url: completedRequests_) {
+		auto it = activeRequests_.find(url);
+		if (it != activeRequests_.end()) {
+			RunningRequestSharedPtr rq = it->second;
+			if (rq->downloadingThread_.joinable()) {
+				rq->downloadingThread_.join();
 			}
+			if (!ignoreDownloadingErrors_) {
+				if (rq->completedSuccefully()) {
+					constexpr const long HTTP_CODE_NO_ERROR = 200;
+					if (rq->httpStatusCode() != HTTP_CODE_NO_ERROR) {
+						throw HTTPError(rq->url(), rq->httpStatusCode());
+					}
+				} else {
+					throw DownloadError(rq->url(), rq->errorMessage());
+				}
+			}
+			activeRequests_.erase(it);
 		}
 	}
+	completedRequests_.clear();
 	return activeRequests_.empty();
 }
 
-
 void cdownload::curl::DownloadManager::waitForFinished()
 {
-	std::unique_lock<std::mutex> lk(requestsMutex_);
+	std::unique_lock<std::mutex> lk(activeRequestsMutex_);
 	requestsCV_.wait(lk, [this](){return this->removeCompletedRequests();});
 }
 
-cdownload::curl::RunningRequest::RunningRequest(const std::string& url)
+cdownload::curl::RunningRequest::RunningRequest(const std::string& url, DownloadManager* manager)
 	: url_(url)
+	, manager_(manager)
 {
 }
 
@@ -185,10 +180,14 @@ void cdownload::curl::RunningRequest::download(std::ostream& output)
 		throw std::runtime_error("Error initializing CURL");
 	}
 	curl_easy_setopt(session_, CURLOPT_WRITEFUNCTION, &RunningRequest::curlWriteCallback);
+	curl_easy_setopt(session_, CURLOPT_XFERINFOFUNCTION, &RunningRequest::curlProgressCallback);
+
 	RunningRequestUserData userData {output, this};
 
 	curl_easy_setopt(session_, CURLOPT_URL, url_.c_str());
 	curl_easy_setopt(session_, CURLOPT_WRITEDATA, &userData);
+	curl_easy_setopt(session_, CURLOPT_XFERINFODATA, &userData);
+	curl_easy_setopt(session_, CURLOPT_NOPROGRESS, 0);
 #ifdef DEBUG_DOWNLOADING_ACTIONS
 	BOOST_LOG_TRIVIAL(debug) << "Downloading data from url " << url_;
 #endif
@@ -201,7 +200,7 @@ void cdownload::curl::RunningRequest::download(std::ostream& output)
 	curl_easy_getinfo(session_, CURLINFO_RESPONSE_CODE, &httpStatusCode_);
 	curl_easy_cleanup(session_);
 	completed_ = true;
-	completed(this);
+	manager_->requestCompleted(this);
 }
 
 size_t cdownload::curl::RunningRequest::curlWriteCallback(char* ptr, size_t size, size_t nmemb, void* userdata)
@@ -216,6 +215,17 @@ size_t cdownload::curl::RunningRequest::curlWriteCallback(char* ptr, size_t size
 	} else {
 		return 0;
 	}
+}
+
+int cdownload::curl::RunningRequest::curlProgressCallback(void* clientp,
+	curl_off_t /*dltotal*/, curl_off_t /*dlnow*/, curl_off_t /*ultotal*/, curl_off_t /*ulnow*/)
+{
+	static_assert(std::is_same<curl_off_t, my_curl_off_t>::value, "");
+	RunningRequestUserData* cud = static_cast<RunningRequestUserData*>(clientp);
+	if (cud->request->scheduleCancellation_) {
+		return 1; // which will tell CURL to cancel downloading
+	}
+	return 0;
 }
 
 void cdownload::curl::RunningRequest::scheduleCancelling()

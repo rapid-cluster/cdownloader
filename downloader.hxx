@@ -27,8 +27,6 @@
 
 #include <json/value.h>
 
-#include <boost/signals2/signal.hpp>
-
 #include <atomic>
 #include <condition_variable>
 #include <iosfwd>
@@ -48,12 +46,12 @@
 namespace cdownload {
 	namespace curl {
 
+	class DownloadManager;
+
 	class RunningRequest {
 	public:
 
 		void scheduleCancelling();
-		boost::signals2::signal<void (const RunningRequest*)> cancelled;
-		boost::signals2::signal<void (RunningRequest*)> completed;
 
 		~RunningRequest();
 
@@ -74,11 +72,14 @@ namespace cdownload {
 			return completed_;
 		}
 	private:
-		RunningRequest(const std::string& url);
+		RunningRequest(const std::string& url, DownloadManager* manager);
 
 		void download(std::ostream& output);
 
 		static size_t curlWriteCallback(char* ptr, size_t size, size_t nmemb, void* userdata);
+		typedef long my_curl_off_t;
+		static int curlProgressCallback(void* clientp,
+			my_curl_off_t dltotal, my_curl_off_t dlnow, my_curl_off_t ultotal, my_curl_off_t ulnow);
 
 		typedef void CURL;
 		CURL* session_ = nullptr;
@@ -90,6 +91,7 @@ namespace cdownload {
 		long httpStatusCode_;
 		std::string url_;
 		friend class DownloadManager;
+		DownloadManager* manager_;
 	};
 
 	class DownloadManager {
@@ -123,15 +125,18 @@ namespace cdownload {
 		void cancelAllRequests();
 		void waitForFinished();
 	private:
+
+		friend class RunningRequest;
 		void requestCompleted(RunningRequest* request);
 		bool removeCompletedRequests();
 		virtual std::string decorateUrl(const std::string& url) const;
 
 		std::map<std::string, RunningRequestSharedPtr> activeRequests_;
-		std::mutex requestsMutex_;
+		std::mutex activeRequestsMutex_;
+		std::mutex completedRequestsMutex_;
 		std::condition_variable requestsCV_;
 		std::atomic<bool> ignoreDownloadingErrors_;
-		std::atomic<std::size_t> completedRequests_;
+		std::vector<std::string> completedRequests_;
 	};
 	}
 

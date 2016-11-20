@@ -66,7 +66,6 @@ cdownload::Chunk cdownload::ChunkDownloader::nextChunk()
 			res.files = downloadChunk(currentChunkStart_, currentChunkLength_, maxDownloadedFileSize);
 			downloaded = true;
 		} catch (curl::DownloadManager::HTTPError& er) {
-			downloader_.cancelAllRequests();
 			// there might be error 413 (Request Entity Too Large), we decrease chunk length then
 			if (er.httpStatusCode() == 413 || er.httpStatusCode() == 502) {
 				// So, we have to decrease the chunk length, but, if the chunk is shorter than
@@ -131,20 +130,28 @@ cdownload::ChunkDownloader::downloadChunk(const datetime& startTime, const timed
 
 	std::vector<path> outputFileNames;
 	std::vector<std::unique_ptr<std::ofstream>> outputStreams;
-	for (auto ds: datasets_) {
-		BOOST_LOG_TRIVIAL(trace) << "Downloading dataset '" << ds << '\'';
-		auto destFileName = tmpDir_ / (ds + '_' + chunkId + '_' + ".tar.gz");
-		if (boost::filesystem::exists(destFileName)) {
-			BOOST_LOG_TRIVIAL(trace) << "Chunk downloader: destination file " << destFileName << " already exists";
-			boost::filesystem::remove(destFileName);
+	try {
+		for (auto ds: datasets_) {
+			BOOST_LOG_TRIVIAL(trace) << "Downloading dataset '" << ds << '\'';
+			auto destFileName = tmpDir_ / (ds + '_' + chunkId + '_' + ".tar.gz");
+			if (boost::filesystem::exists(destFileName)) {
+				BOOST_LOG_TRIVIAL(trace) << "Chunk downloader: destination file " << destFileName << " already exists";
+				boost::filesystem::remove(destFileName);
+			}
+
+			outputFileNames.push_back(destFileName);
+			outputStreams.emplace_back(new std::ofstream(destFileName.c_str()));
+			downloader_.beginDownloading(ds, *outputStreams.back(), startTime, startTime + duration);
 		}
 
-		outputFileNames.push_back(destFileName);
-		outputStreams.emplace_back(new std::ofstream(destFileName.c_str()));
-		downloader_.beginDownloading(ds, *outputStreams.back(), startTime, startTime + duration);
+		downloader_.waitForFinished();
+	} catch (...) {
+		BOOST_LOG_TRIVIAL(trace) << "Downloading unsuccessful, cancelling all active requests...";
+		downloader_.cancelAllRequests(); // we have to stop all request here, because output streams
+		                                 // may not be deleted until that
+		BOOST_LOG_TRIVIAL(trace) << "Requests cancelled";
+		throw;
 	}
-
-	downloader_.waitForFinished();
 	outputStreams.clear();
 
 	auto itFileNames = outputFileNames.begin();
