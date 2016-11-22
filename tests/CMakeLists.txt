@@ -10,3 +10,6 @@ target_link_libraries(cdf-info cdownload)
 
 add_executable(chunk-downloader-test chunk_downloader_test.cxx)
 target_link_libraries(chunk-downloader-test cdownload)
+
+add_executable(averaging-test averaging_test.cxx)
+target_link_libraries(averaging-test cdownload)
