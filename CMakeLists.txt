@@ -124,3 +124,5 @@ option(BUILD_MANUAL_TESTS ON)
 if(BUILD_MANUAL_TESTS)
 	add_subdirectory(tests)
 endif(BUILD_MANUAL_TESTS)
+
+add_subdirectory(tools)
