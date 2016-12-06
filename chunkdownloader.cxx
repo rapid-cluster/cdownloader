@@ -32,13 +32,14 @@
 
 #include <fstream>
 
-cdownload::ChunkDownloader::ChunkDownloader(const path& tmpDir,
+cdownload::ChunkDownloader::ChunkDownloader(const path& tmpDir,  const path& unpackedDataDir,
                                             cdownload::DataDownloader& downloader,
                                             const std::vector<DatasetName>& datasets,
                                             const datetime& startTime, const datetime& endTime)
 	: downloader_(downloader)
 	, datasets_{datasets}
 	, tmpDir_{tmpDir}
+	, unpackedDataDir_{unpackedDataDir}
 	, start_{startTime}
 	, end_{endTime}
 	, currentChunkStart_{startTime}
@@ -162,7 +163,7 @@ cdownload::ChunkDownloader::downloadChunk(const datetime& startTime, const timed
 		if (curFileSize > maxFileSize) {
 			maxFileSize = curFileSize;
 		}
-		res[*itDatasets] = DownloadedProductFile(destFileName, tmpDir_, *itDatasets);
+		res[*itDatasets] = DownloadedProductFile(destFileName, unpackedDataDir_, *itDatasets);
 	}
 	maxDownloadedFileSize = maxFileSize;
 	return res;
@@ -176,6 +177,16 @@ bool cdownload::ChunkDownloader::eof() const
 void cdownload::ChunkDownloader::setNextChunkStartTime(const datetime& startTime)
 {
 	currentChunkStart_ = startTime;
+}
+
+void cdownload::ChunkDownloader::setTimeRange(const datetime& startTime, const datetime& endTime)
+{
+	start_ = startTime;
+	end_ = endTime;
+	if (currentChunkStart_ < start_) {
+		BOOST_LOG_TRIVIAL(warning) << "ChunkDownloader: adjusting current chunk start time";
+		currentChunkStart_ = start_;
+	}
 }
 
 bool cdownload::Chunk::empty() const

@@ -44,7 +44,7 @@ int main(int /*argc*/, char** /*argv*/)
 
 	path tmpDir = "/tmp/test-chunk-download";
 	boost::filesystem::create_directories(tmpDir);
-	ChunkDownloader chunkDownloader {tmpDir, downloader, datasets, availableStartDateTime, availableEndDateTime};
+	ChunkDownloader chunkDownloader {tmpDir, tmpDir, downloader, datasets, availableStartDateTime, availableEndDateTime};
 
 	while(!chunkDownloader.eof()) {
 		chunkDownloader.nextChunk();

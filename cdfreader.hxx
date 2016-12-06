@@ -163,8 +163,8 @@ namespace cdownload {
 	};
 
 	datetime epochToDateTime(double epoch);
-
 	double dateTimeToEpoch(const datetime& dt);
+	std::string epochToString(double epoch);
 }
 }
 

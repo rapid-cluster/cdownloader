@@ -81,12 +81,14 @@ namespace cdownload {
 	class Parameters {
 	public:
 
-		Parameters(const path& outputDir = path("/tmp"), const path& workDir = path("/tmp"));
+		Parameters(const path& outputDir = path("/tmp"), const path& workDir = path("/tmp"),
+		           const path& cacheDir = path());
 
 		void setTimeRange(const datetime& startDate, const datetime& endDate);
 		void setTimeInterval(const timeduration& interval);
 		void setExpansionDictFile(const path& fileName);
 		void setContinueMode(bool continueDownloading);
+		void setDownloadMissingData(bool download);
 
 		const datetime& startDate() const
 		{
@@ -128,10 +130,19 @@ namespace cdownload {
 			return workDir_;
 		}
 
+		const path& cacheDir() const
+		{
+			return cacheDir_;
+		}
+
 		std::vector<std::string> allDatasetNames() const;
 
 		bool continueDownloading() const {
 			return continue_;
+		}
+
+		bool downloadMissingData() const {
+			return downloadMissingData_;
 		}
 
 	private:
@@ -143,6 +154,8 @@ namespace cdownload {
 		path outputDir_;
 		path workDir_;
 		bool continue_;
+		path cacheDir_;
+		bool downloadMissingData_;
 	};
 
 	std::ostream& operator<<(std::ostream& os, const Parameters& p);

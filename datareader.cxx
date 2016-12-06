@@ -22,22 +22,28 @@
 
 #include "datareader.hxx"
 
-#include "unpacker.hxx"
+#include "datasource.hxx"
 #include "cdfreader.hxx"
 
 #include <algorithm>
 #include <cassert>
 
+#ifndef NDEBUG
+#include <boost/lexical_cast.hpp>
+#endif
+
 constexpr const std::size_t INVALID_INDEX = static_cast<std::size_t>(-1);
 
-cdownload::DataReader::DataReader(const datetime& startTime, timeduration cellLength,
+cdownload::DataReader::DataReader(const datetime& startTime, const datetime& endTime, timeduration cellLength,
                                   const std::vector<std::shared_ptr<RawDataFilter> >& filters,
-                                  const std::map<DatasetName, DownloadedProductFile>& cdfFiles,
+                                  std::map<DatasetName, std::shared_ptr<DataSource>>& datasources,
                                   const DatasetProductsMap& fieldsToRead,
                                   std::vector<AveragedVariable>& cells,
                                   const std::vector<Field>& fields)
 	: startTime_{startTime}
+	, endTime_{endTime}
 	, cellLength_{cellLength}
+	, datasources_{datasources}
 	, readers_{}
 	, cells_(cells)
 	, filters_{filters}
@@ -64,7 +70,11 @@ cdownload::DataReader::DataReader(const datetime& startTime, timeduration cellLe
 	// averaging cells array)
 
 	for (const std::pair<DatasetName, std::vector<ProductName> >& p: productsToRead) {
-		CDF::File cdf {cdfFiles.at(p.first)};
+		auto datasource = datasources_.at(p.first);
+		datasource->setNextChunkStartTime(startTime_);
+		auto chunk = datasource->nextChunk();
+		assert(!chunk.empty());
+		CDF::File cdf {chunk.file};
 		CDF::Info info {cdf};
 		std::vector<ProductName> variablesToReadFromDataset; // those we export plus timestamp
 		std::vector<std::size_t> variableIndicies;
@@ -118,7 +128,7 @@ cdownload::DataReader::DataReader(const datetime& startTime, timeduration cellLe
 		}
 
 		DataSetReadingContext st (p.first, std::move(reader), variableIndicies,timeStampVarIndex,
-			filtersForDataset);
+			filtersForDataset, datasource, variablesToReadFromDataset);
 
 		readers_[p.first] = std::move(st);
 	}
@@ -145,23 +155,36 @@ bool cdownload::DataReader::readNextCell()
 		cell.scheduleReset();
 	}
 
+	if (startTime_ >= endTime_) {
+		eof_ = true;
+		return false;
+	}
+
 	bool anyCellWasReadSuccesfully = false;
+	bool eofInOneOfTheDatasets = false;
 	for (auto& dsp: readers_) {
 		CellReadStatus cellReadStatus = readNextCell(startTime_, dsp.second);
-		if (cellReadStatus == CellReadStatus::NoRecordsSurviedFiltering) {
+		if (cellReadStatus == CellReadStatus::NoRecordSurviedFiltering) {
 			anyCellWasReadSuccesfully = false;
+			break;
+		}
+		if (cellReadStatus == CellReadStatus::EoF) {
+			eofInOneOfTheDatasets = true;
 			break;
 		}
 		anyCellWasReadSuccesfully |= (cellReadStatus == CellReadStatus::OK);
 	}
 	startTime_ += cellLength_;
+	if (eofInOneOfTheDatasets) {
+		eof_ = true;
+		return false;
+	}
 	if (!anyCellWasReadSuccesfully) {
 		// check for EOF
-		// EOF only when all readers are in EOF state
-		bool eof = true;
+		bool eof = false;
 		for (auto& dsp: readers_) {
-			if (!dsp.second.reader->eof()) {
-				eof = false;
+			if (dsp.second.reader->eof()) {
+				eof = true;
 				break;
 			}
 		}
@@ -210,7 +233,6 @@ namespace {
 
 	inline std::pair<Cell,bool> intersection(const Cell& c1, const Cell& c2)
 	{
-
 		const Cell cLower = c1.begin() < c2.begin() ? c1: c2;
 		const Cell cUpper = c1.begin() < c2.begin() ? c2: c1;
 		if (cLower.end() < cUpper.begin()) {
@@ -231,18 +253,47 @@ cdownload::DataReader::readNextCell(const datetime& cellStart, cdownload::DataRe
 	const Cell outputCell = Cell::fromRange(CDF::dateTimeToEpoch(cellStart), CDF::dateTimeToEpoch(cellStart + cellLength_));
 	double weight = 1.0; // will be later modified if the cell to be read extends
 	double epoch = ds.lastReadTimeStamp;
+#ifndef NDEBUG
+	using namespace csa_time_formatting;
+	std::string outputCellString = boost::lexical_cast<std::string>(cellStart) + " + "
+		+ boost::lexical_cast<std::string>(cellLength_);
+	std::string epochCellString;
+#endif
 	bool anyRecordSurviedFiltering = false;
 	do {
 		bool readOk = false;
 		do {
 			ds.lastReadTimeStamp = epoch;
 			readOk = ds.reader->readTimeStampRecord(ds.readRecordsCount++);
+			if (!readOk && ds.reader->eof()) {
+				if (advanceDataSource(ds)) {
+					continue;
+				} else {
+					return CellReadStatus::EoF;
+				}
+			}
 			epoch = *static_cast<const double*>(ds.reader->bufferForVariable(ds.timestampVariableIndex)); // EPCH16?
+#ifndef NDEBUG
+		epochCellString = CDF::epochToString(epoch);
+#endif
 		} while ((epoch < outputCell.begin()) && readOk); // we skip records with
 		// epoch == 0, which indicates absence of data
 
-		const Cell previousDatasetCell {ds.lastWroteTimeStamp, (epoch - ds.lastReadTimeStamp)/2};
+		if (ds.lastReadTimeStamp <= 0 && epoch > outputCell.begin()) {
+			--ds.readRecordsCount;
+			return CellReadStatus::NoRecordSurviedFiltering;
+		}
+		const Cell previousDatasetCell {ds.lastReadTimeStamp, (epoch - ds.lastReadTimeStamp)/2};
 		const Cell currentDatasetCell {epoch, (epoch - ds.lastReadTimeStamp)/2};
+#ifndef NDEBUG
+		std::string lastWroteTimeStampString = CDF::epochToString(ds.lastWroteTimeStamp);
+		std::string previousDatasetCellString = CDF::epochToString(previousDatasetCell.begin()) + " : " +
+			CDF::epochToString(previousDatasetCell.end());
+
+		std::string currentDatasetCellString =
+			CDF::epochToString(currentDatasetCell.begin()) + " : " +
+			CDF::epochToString(currentDatasetCell.end());
+#endif
 		ds.lastReadTimeStamp = epoch;
 
 		std::pair<Cell,bool> intersectionWithPrevious = intersection(previousDatasetCell, outputCell);
@@ -255,11 +306,7 @@ cdownload::DataReader::readNextCell(const datetime& cellStart, cdownload::DataRe
 
 		readOk = ds.reader->readRecord(ds.readRecordsCount - 1, true); // we've read timestamp already
 		if (!readOk) {
-			if (ds.reader->eof()) {
-				return CellReadStatus::EoF;
-			} else {
-				return CellReadStatus::ReadError;
-			}
+			return CellReadStatus::ReadError;
 		}
 
 		// statistical weight is proportional to
@@ -294,8 +341,8 @@ cdownload::DataReader::readNextCell(const datetime& cellStart, cdownload::DataRe
 		copyValuesToAveragingCells(ds, weight);
 		ds.lastWeight = weight;
 		ds.lastWroteTimeStamp = epoch;
-	} while (weight >= 1.); // which means that currentDatasetCell completely falls inside of outputCell
-	return anyRecordSurviedFiltering ? CellReadStatus::OK : CellReadStatus::NoRecordsSurviedFiltering;
+	} while (outputCell.end() > epoch); // which means that currentDatasetCell completely falls inside of outputCell
+	return anyRecordSurviedFiltering ? CellReadStatus::OK : CellReadStatus::NoRecordSurviedFiltering;
 
 // 	return true;
 }
@@ -357,7 +404,9 @@ cdownload::DataReader::DataSetReadingContext::DataSetReadingContext(const Datase
 	std::unique_ptr<CDF::Reader> && aReader,
 	const std::vector<std::size_t>& indiciesInCellsParam,
 	std::size_t aTimestampVariableIndex,
-	const std::vector<std::shared_ptr<RawDataFilter> >& filtersParam)
+	const std::vector<std::shared_ptr<RawDataFilter> >& filtersParam,
+	std::shared_ptr<DataSource> adatasource,
+	const std::vector<ProductName> variablesToReadFromDatasetParam)
 	: datasetName(aDataset)
 	, reader{std::move(aReader)}
 	, indiciesInCells(indiciesInCellsParam)
@@ -368,5 +417,19 @@ cdownload::DataReader::DataSetReadingContext::DataSetReadingContext(const Datase
 	, lastWeight(-1.)
 	, filters(filtersParam)
 	, eof(false)
+	, datasource(adatasource)
+	, variablesToReadFromDataset(variablesToReadFromDatasetParam)
 {
+}
+
+bool cdownload::DataReader::advanceDataSource(cdownload::DataReader::DataSetReadingContext& context)
+{
+	DatasetChunk nextChunk = context.datasource->nextChunk();
+	if (nextChunk.empty()) {
+		return false;
+	}
+	CDF::File cdfFile(nextChunk.file);
+	context.reader.reset(new CDF::Reader(cdfFile, context.variablesToReadFromDataset));
+	context.readRecordsCount = 0;
+	return true;
 }

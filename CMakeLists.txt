@@ -46,6 +46,8 @@ chunkdownloader.hxx
 chunkdownloader.cxx
 datareader.hxx
 datareader.cxx
+datasource.hxx
+datasource.cxx
 downloader.cxx
 downloader.hxx
 driver.hxx

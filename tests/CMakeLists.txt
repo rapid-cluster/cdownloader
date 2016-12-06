@@ -13,3 +13,6 @@ target_link_libraries(chunk-downloader-test cdownload)
 
 add_executable(averaging-test averaging_test.cxx)
 target_link_libraries(averaging-test cdownload)
+
+add_executable(cache-test cache-test.cxx)
+target_link_libraries(cache-test cdownload)

@@ -24,8 +24,8 @@
 
 #include "average.hxx"
 #include "cdfreader.hxx"
-#include "chunkdownloader.hxx"
 #include "datareader.hxx"
+#include "datasource.hxx"
 #include "downloader.hxx"
 #include "field.hxx"
 #include "metadata.hxx"
@@ -48,12 +48,12 @@
 
 namespace {
 
-	void extractInfo(const std::map<cdownload::DatasetName, cdownload::DownloadedProductFile>& files,
+	void extractInfo(const std::map<cdownload::DatasetName, cdownload::DatasetChunk>& files,
 	                 std::map<cdownload::DatasetName, cdownload::CDF::Info>& info,
 	                 std::vector<cdownload::ProductName>& cdfKeys)
 	{
-		for (const std::pair<cdownload::DatasetName, cdownload::DownloadedProductFile>& p: files) {
-			cdownload::CDF::Info i = cdownload::CDF::Info(cdownload::CDF::File(p.second));
+		for (const std::pair<cdownload::DatasetName, cdownload::DatasetChunk>& p: files) {
+			cdownload::CDF::Info i = cdownload::CDF::Info(cdownload::CDF::File(p.second.file));
 			info[p.first] = i;
 			auto varNames = i.variableNames();
 			std::copy(varNames.begin(), varNames.end(), std::back_inserter(cdfKeys));
@@ -149,14 +149,17 @@ void cdownload::Driver::doTask()
 
 //  datetime currentChunkStartTime = availableStartDateTime;
 
-	// have to download first chunk separately in order to detect dataset products
-	ChunkDownloader chunkDownloader {tmpDirName, downloader, requiredDatasets, availableStartDateTime, availableEndDateTime};
-
-	Chunk currentChunk = chunkDownloader.nextChunk();
+	// have to get first chunks separately in order to detect dataset products
+	std::map<DatasetName, std::shared_ptr<DataSource>> datasources;
+	std::map<DatasetName, DatasetChunk> chunks;
+	for (const auto& ds: requiredDatasets) {
+		datasources[ds] = std::shared_ptr<DataSource>(new DataSource(ds, params_, meta));
+		chunks[ds] = datasources[ds]->nextChunk();
+	}
 
 	std::map<cdownload::DatasetName, CDF::Info> availableProducts;
 	std::vector<ProductName> orderedCDFKeys;
-	extractInfo(currentChunk.files, availableProducts, orderedCDFKeys);
+	extractInfo(chunks, availableProducts, orderedCDFKeys);
 
 	BOOST_LOG_TRIVIAL(debug) << "Collected CDF variables: " << put_list(orderedCDFKeys);
 
@@ -268,9 +271,11 @@ void cdownload::Driver::doTask()
 		// 2. reinitialize chunkDownloader
 		datetime startTime = availableStartDateTime + params_.timeInterval() * cellNo;
 		BOOST_LOG_TRIVIAL(info) << "Fast forwarding to " << startTime;
-		chunkDownloader.setNextChunkStartTime(startTime);
+		for (auto& dsp: datasources) {
+			dsp.second->setNextChunkStartTime(startTime);
+		}
 		// 3. ...and download it
-		currentChunk = chunkDownloader.nextChunk();
+// 		currentChunk = chunkDownloader.nextChunk();
 	} else {
 		BOOST_LOG_TRIVIAL(debug) << "Truncating output files";
 		for (auto& writer: writers) {
@@ -279,35 +284,28 @@ void cdownload::Driver::doTask()
 		}
 	}
 
-	do {
-		if (!currentChunk.empty()) {
-			BOOST_LOG_TRIVIAL(info) << "Processing chunk [" << currentChunk.startTime << ','
-			                        << currentChunk.endTime << ']' << std::endl;
+	DataReader reader {availableStartDateTime, availableEndDateTime, params_.timeInterval(),
+		rawFilters, datasources,  productsToRead, averagingCells, fields};
+// 			BOOST_LOG_TRIVIAL(info) << "Processing chunk [" << currentChunk.startTime << ','
+// 			                        << currentChunk.endTime << ']' << std::endl;
 
-			DataReader reader {currentChunk.startTime, params_.timeInterval(), rawFilters,
-			                   currentChunk.files, productsToRead, averagingCells, fields};
-
-			while (!reader.eof() && !reader.fail()) {
-				if (reader.readNextCell()) {
-					bool cellPassedFiltering = true;
-					for (const auto& filter: averageDataFilters) {
-						if (!filter->test(averagingCells)) {
-							cellPassedFiltering = false;
-							break;
-						}
-					}
-					if (cellPassedFiltering) {
-						for (const std::unique_ptr<Writer>& writer: writers) {
-							writer->write(cellNo, reader.cellMidTime(), averagingCells);
-						}
-					}
-					++cellNo;
+	while (!reader.eof() && !reader.fail()) {
+		if (reader.readNextCell()) {
+			bool cellPassedFiltering = true;
+			for (const auto& filter: averageDataFilters) {
+				if (!filter->test(averagingCells)) {
+					cellPassedFiltering = false;
+					break;
 				}
 			}
+			if (cellPassedFiltering) {
+				for (const std::unique_ptr<Writer>& writer: writers) {
+					writer->write(cellNo, reader.cellMidTime(), averagingCells);
+				}
+			}
+			++cellNo;
 		}
-
-		currentChunk = chunkDownloader.nextChunk();
-	} while (!chunkDownloader.eof());
+	}
 }
 
 std::unique_ptr<cdownload::Writer> cdownload::Driver::createWriterForOutput(const cdownload::Output& output) const

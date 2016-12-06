@@ -73,8 +73,8 @@ void assureDirectoryExistsAndWritable(const cdownload::path& p, const std::strin
 	}
 	if (::access(p.c_str(), W_OK) != 0) {
 		int errsv = errno;
-		char errMessage[512];
-		strerror_r(errsv, errMessage, 512);
+		char errMessageBuf[512];
+		char* errMessage = strerror_r(errsv, errMessageBuf, 512);
 		throw std::runtime_error(dirNameForUser + " directory '" + p.string() + "' is not writable: " + std::string(errMessage));
 	}
 }
@@ -112,7 +112,10 @@ int main(int ac, char** av)
 	    po::value<logging::trivial::severity_level>()->default_value(logging::trivial::info),
 	    "Verbosity level")
 	    ("log-file", po::value<path>(), "Log file location")
-	    ("continue", po::value<bool>()->default_value(false)->implicit_value(true), "Continue downloading existing output files");
+	    ("continue", po::value<bool>()->default_value(false)->implicit_value(true), "Continue downloading existing output files")
+	    ("cache-dir", po::value<path>(), "Directory with pre-downloaded CDF files")
+	    ("download-missing", po::value<bool>()->default_value(true)->implicit_value(true),
+	         "Download missing from cache data");
 
 	po::options_description timeOptions("Time interval");
 
@@ -148,8 +151,10 @@ int main(int ac, char** av)
 		return 1;
 	}
 
-	cdownload::Parameters parameters {vm["output-dir"].as<path>(), vm["work-dir"].as<path>()};
+	path cacheDir = vm.count("cache-dir") ? vm["cache-dir"].as<path>() : path();
+	cdownload::Parameters parameters {vm["output-dir"].as<path>(), vm["work-dir"].as<path>(), cacheDir};
 	parameters.setContinueMode(vm["continue"].as<bool>());
+	parameters.setDownloadMissingData(vm["download-missing"].as<bool>());
 
 	try {
 		assureDirectoryExistsAndWritable(parameters.outputDir(), "Output");

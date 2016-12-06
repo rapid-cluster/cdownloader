@@ -67,14 +67,16 @@ const std::vector<cdownload::ProductName>& cdownload::Output::productsForDataset
 	throw std::runtime_error("No dataset with name");
 }
 
-cdownload::Parameters::Parameters(const path& outputDir, const path& workDir)
+cdownload::Parameters::Parameters(const path& outputDir, const path& workDir, const path& cacheDir)
 	: startDate_{makeDateTime(2000, 7, 16)}
 	, endDate_{boost::posix_time::second_clock::universal_time()}
 	, timeInterval_{0, 1, 0}
 	, outputs_{}
 	, expansionDictionaryFile_{"/usr/share/csadownloader/expansion.dict"}
 	, outputDir_{outputDir}
-	, workDir_{workDir} {
+	, workDir_{workDir}
+	, cacheDir_{cacheDir}
+	, downloadMissingData_{true} {
 }
 
 void cdownload::Parameters::setExpansionDictFile(const path& fileName) {
@@ -94,6 +96,10 @@ void cdownload::Parameters::setContinueMode(bool continueDownloading) {
 	continue_ = continueDownloading;
 }
 
+void cdownload::Parameters::setDownloadMissingData(bool download)
+{
+	downloadMissingData_ = download;
+}
 
 namespace {
 	[[noreturn]]
@@ -268,6 +274,8 @@ std::ostream& cdownload::operator<<(std::ostream& os, const cdownload::Parameter
 		<< "Work dir: " << p.workDir() << std::endl
 		<< "Time range: [" << p.startDate() << ", " << p.endDate() << ']' << std::endl
 		<< "Interval: " << p.timeInterval() << std::endl
+		<< "Cache dir: " << p.cacheDir() <<
+			" (download missing: " << std::boolalpha << p.downloadMissingData() << ")" << std::endl
 		<< "Outputs:" << std::endl;
 		for (const Output& o: p.outputs()) {
 			printOutput(os, o, "\n", "\t");

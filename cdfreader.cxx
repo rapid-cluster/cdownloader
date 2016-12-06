@@ -482,36 +482,6 @@ cdownload::FieldDesc cdownload::CDF::Info::describeVariable(const cdownload::CDF
 			v.elementsCount()};
 }
 
-cdownload::datetime cdownload::CDF::epochToDateTime(double epoch)
-{
-	// The CDF_EPOCH and CDF_EPOCH16 data types are used to store date and time values referenced
-	// from a particular epoch. For CDF that epoch is 01-Jan-0000 00:00:00.000 and
-	// 01-Jan-0000 00:00:00.000.000.000.000, respectively. CDF_EPOCH values are the number of
-	// milliseconds since the epoch.
-
-	long year; // Year (AD, e.g., 1994)
-	long month; //  Month (1-12).
-	long day; // Day (1-31).
-	long hour; // Hour (0-23).
-	long minute; // Minute (0-59).
-	long second; //  Second (0-59).
-	long msec; // Millisecond (0-999).
-
-	EPOCHbreakdown(epoch, &year, &month, &day, &hour, &minute, &second, &msec);
-
-	return makeDateTime(year, month, day, hour, minute, second + static_cast<double>(msec) * 1e-3);
-}
-
-double cdownload::CDF::dateTimeToEpoch(const datetime& dt)
-{
-	const double res =  computeEPOCH(dt.date().year(), 0, dt.date().day_of_year(),
-	                    0, 0, 0, dt.time_of_day().total_milliseconds());
-	if (res < 0 ) { // copmuteEPOCH() may return  ILLEGAL_EPOCH_VALUE (-1)
-		throw std::runtime_error("Invalid datetime, can not be converted to CDF EPOCH");
-	}
-	return res;
-}
-
 cdownload::CDF::Reader::Reader(const cdownload::CDF::File& f, const std::vector<ProductName>& variables)
 	: variables_(variables.size())
 	, buffers_(variables.size())
@@ -560,8 +530,44 @@ bool cdownload::CDF::Reader::readTimeStampRecord(std::size_t index)
 	return variables_[timeStampVariableIndex_]->read(buffers_[timeStampVariableIndex_].get(), index, 1);
 }
 
-
 const void* cdownload::CDF::Reader::bufferForVariable(std::size_t variableIndex) const
 {
 	return buffers_.at(variableIndex).get();
+}
+
+cdownload::datetime cdownload::CDF::epochToDateTime(double epoch)
+{
+	// The CDF_EPOCH and CDF_EPOCH16 data types are used to store date and time values referenced
+	// from a particular epoch. For CDF that epoch is 01-Jan-0000 00:00:00.000 and
+	// 01-Jan-0000 00:00:00.000.000.000.000, respectively. CDF_EPOCH values are the number of
+	// milliseconds since the epoch.
+
+	long year; // Year (AD, e.g., 1994)
+	long month; //  Month (1-12).
+	long day; // Day (1-31).
+	long hour; // Hour (0-23).
+	long minute; // Minute (0-59).
+	long second; //  Second (0-59).
+	long msec; // Millisecond (0-999).
+
+	EPOCHbreakdown(epoch, &year, &month, &day, &hour, &minute, &second, &msec);
+
+	return makeDateTime(year, month, day, hour, minute, second + static_cast<double>(msec) * 1e-3);
+}
+
+double cdownload::CDF::dateTimeToEpoch(const datetime& dt)
+{
+	const double res =  computeEPOCH(dt.date().year(), 0, dt.date().day_of_year(),
+	                    0, 0, 0, dt.time_of_day().total_milliseconds());
+	if (res < 0 ) { // copmuteEPOCH() may return  ILLEGAL_EPOCH_VALUE (-1)
+		throw std::runtime_error("Invalid datetime, can not be converted to CDF EPOCH");
+	}
+	return res;
+}
+
+std::string cdownload::CDF::epochToString(double epoch)
+{
+	char epString[EPOCH_STRING_LEN+1];
+	encodeEPOCH(epoch, epString);
+	return std::string(epString);
 }
