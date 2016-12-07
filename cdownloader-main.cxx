@@ -126,6 +126,14 @@ int main(int ac, char** av)
 	;
 	desc.add(timeOptions);
 
+	po::options_description qualityOptions("Quality options");
+	qualityOptions.add_options()
+		("quality-product-name", po::value<std::vector<cdownload::ProductName>>()->composing(), "Product name")
+		("quality-min-value", po::value<std::vector<int>>()->composing(), "Min quality value")
+	;
+
+	desc.add(qualityOptions);
+
 	po::options_description outputOptions("Outputs");
 
 	outputOptions.add_options()
@@ -155,6 +163,28 @@ int main(int ac, char** av)
 	cdownload::Parameters parameters {vm["output-dir"].as<path>(), vm["work-dir"].as<path>(), cacheDir};
 	parameters.setContinueMode(vm["continue"].as<bool>());
 	parameters.setDownloadMissingData(vm["download-missing"].as<bool>());
+
+	std::vector<cdownload::ProductName> qualityFilterProducts;
+	std::vector<int> qualityFilterMinQualities;
+
+	if (vm.count("quality-product-name")) {
+		qualityFilterProducts = vm["quality-product-name"].as<std::vector<cdownload::ProductName>>();
+	}
+
+	if (vm.count("quality-min-value")) {
+		qualityFilterMinQualities = vm["quality-min-value"].as<std::vector<int>>();
+	}
+
+	if (qualityFilterProducts.size() != qualityFilterMinQualities.size()) {
+		std::cerr << "Number of quality product names (" << qualityFilterProducts.size()
+			<< ") is not equal to that of quality levels (" << qualityFilterMinQualities.size()
+			<< ")" << std::endl;
+		return 2;
+	}
+
+	for (std::size_t i = 0; i < qualityFilterProducts.size(); ++i) {
+		parameters.addQualityFilter(qualityFilterProducts[i], qualityFilterMinQualities[i]);
+	}
 
 	try {
 		assureDirectoryExistsAndWritable(parameters.outputDir(), "Output");

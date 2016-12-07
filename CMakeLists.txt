@@ -72,6 +72,8 @@ filters/plasmasheet.hxx
 filters/plasmasheet.cxx
 filters/baddata.hxx
 filters/baddata.cxx
+filters/quality.hxx
+filters/quality.cxx
 writers/ASCIIWriter.hxx
 writers/ASCIIWriter.cxx
 writers/BinaryWriter.hxx

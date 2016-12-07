@@ -256,6 +256,11 @@ std::vector<std::string> cdownload::Parameters::allDatasetNames() const
 	return res;
 }
 
+void cdownload::Parameters::addQualityFilter(const cdownload::ProductName& product, int minQuality)
+{
+	qualityFilters_.push_back({product, minQuality});
+}
+
 namespace {
 	void printOutput(std::ostream& os, const cdownload::Output& o,
 		             const std::string& fieldDelim, const std::string& ident)

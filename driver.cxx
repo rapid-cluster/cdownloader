@@ -34,6 +34,7 @@
 
 #include "filters/baddata.hxx"
 #include "filters/plasmasheet.hxx"
+#include "filters/quality.hxx"
 
 #include "writers/ASCIIWriter.hxx"
 #include "writers/BinaryWriter.hxx"
@@ -333,6 +334,9 @@ void cdownload::Driver::createFilters(std::vector<std::shared_ptr<RawDataFilter>
 	rawDataFilters.emplace_back(new Filters::BadDataFilter());
 	rawDataFilters.emplace_back(new Filters::PlasmaSheetModeFilter());
 
+	for (const auto& qfp: params_.qualityFilters()) {
+		rawDataFilters.emplace_back(new Filters::QualityFilter(qfp.product, qfp.minQuality));
+	}
 	averagedDataFilters.emplace_back(new Filters::PlasmaSheet());
 }
 

@@ -62,6 +62,8 @@ namespace cdownload {
 		DatasetName datasetName_;
 	};
 
+	std::ostream& operator<<(std::ostream& os, const ProductName& product);
+	std::istream& operator>>(std::istream& is, ProductName& product);
 
 	using DatasetProductsMap = std::map<std::string, std::vector<ProductName> >;
 
@@ -69,7 +71,6 @@ namespace cdownload {
 	DatasetProductsMap parseProductsList(const std::vector<ProductName>& products);
 
 	std::vector<ProductName> expandProductsMap(const DatasetProductsMap& map);
-
 
 	inline bool operator==(const ProductName& left, const ProductName& right) {
 		return left.dataset() == right.dataset() &&
@@ -85,8 +86,6 @@ namespace cdownload {
 		}
 		return left.variable() < right.variable();
 	}
-
-	std::ostream& operator<<(std::ostream& os, const ProductName& pr);
 
 	path homeDirectory();
 

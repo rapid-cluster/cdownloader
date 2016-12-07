@@ -74,6 +74,10 @@ namespace cdownload {
 
 	Output parseOutputDefinitionFile(const path& filePath);
 
+	struct QualityFilterParameters {
+		ProductName product;
+		int minQuality;
+	};
 	/**
 	 * @brief Encapsulates all settings related to outputs
 	 *
@@ -145,6 +149,11 @@ namespace cdownload {
 			return downloadMissingData_;
 		}
 
+		const std::vector<QualityFilterParameters>& qualityFilters() const {
+			return qualityFilters_;
+		}
+
+		void addQualityFilter(const ProductName& product, int minQuality);
 	private:
 		datetime startDate_;
 		datetime endDate_;
@@ -156,6 +165,7 @@ namespace cdownload {
 		bool continue_;
 		path cacheDir_;
 		bool downloadMissingData_;
+		std::vector<QualityFilterParameters> qualityFilters_;
 	};
 
 	std::ostream& operator<<(std::ostream& os, const Parameters& p);

@@ -66,6 +66,15 @@ std::ostream& cdownload::operator<<(std::ostream& os, const cdownload::ProductNa
 	return os;
 }
 
+std::istream & cdownload::operator>>(std::istream& is, cdownload::ProductName& product)
+{
+	std::string name;
+	is >> name;
+	product = ProductName(name);
+	return is;
+}
+
+
 cdownload::path cdownload::homeDirectory()
 {
 	const char* homedir;
