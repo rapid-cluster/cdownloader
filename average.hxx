@@ -29,8 +29,8 @@
 #include <boost/accumulators/accumulators.hpp>
 
 #include <boost/accumulators/statistics/count.hpp>
-#include <boost/accumulators/statistics/weighted_mean.hpp>
-#include <boost/accumulators/statistics/weighted_variance.hpp>
+#include <boost/accumulators/statistics/mean.hpp>
+#include <boost/accumulators/statistics/variance.hpp>
 
 namespace cdownload {
 
@@ -49,7 +49,7 @@ namespace cdownload {
 		AveragingRegister();
 		void reset();
 
-		void add(double value, double weight = 1.);
+		void add(double value);
 
 		mean_value_type mean() const;
 		counter_type count() const;
@@ -60,10 +60,9 @@ namespace cdownload {
 		bool resetFlag_;
 		using acc_type = boost::accumulators::accumulator_set<double,
 			boost::accumulators::features<
-				boost::accumulators::tag::weighted_mean,
-				boost::accumulators::tag::weighted_variance,
-				boost::accumulators::tag::count>,
-			double>;
+				boost::accumulators::tag::mean,
+				boost::accumulators::tag::variance,
+				boost::accumulators::tag::count>>;
 		acc_type acc_;
 	};
 

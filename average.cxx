@@ -37,17 +37,17 @@ void cdownload::AveragingRegister::reset()
 	resetFlag_ = false;
 }
 
-void cdownload::AveragingRegister::add(double value, double aweight)
+void cdownload::AveragingRegister::add(double value)
 {
 	if (resetFlag_) {
 		reset(); // will reset the flag too
 	}
-	acc_(value, ba::weight = aweight);
+	acc_(value);
 }
 
 cdownload::AveragingRegister::mean_value_type cdownload::AveragingRegister::mean() const
 {
-	return ba::extract::weighted_mean(acc_);
+	return ba::extract::mean(acc_);
 }
 
 cdownload::AveragingRegister::counter_type cdownload::AveragingRegister::count() const
@@ -57,7 +57,7 @@ cdownload::AveragingRegister::counter_type cdownload::AveragingRegister::count()
 
 cdownload::AveragingRegister::variance_value_type cdownload::AveragingRegister::variance() const
 {
-	return ba::extract::weighted_variance(acc_);
+	return ba::extract::variance(acc_);
 }
 
 cdownload::AveragingRegister::stddev_value_type cdownload::AveragingRegister::stdDev() const

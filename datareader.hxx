@@ -68,8 +68,6 @@ namespace cdownload {
 			std::size_t readRecordsCount;
 			std::size_t timestampVariableIndex;
 			double lastReadTimeStamp;
-			double lastWroteTimeStamp;
-			double lastWeight;
 // 			CDF::Info info;
 			std::vector<std::shared_ptr<RawDataFilter> > filters;
 			bool eof;
@@ -84,7 +82,7 @@ namespace cdownload {
 			ReadError
 		};
 		CellReadStatus readNextCell(const datetime& cellStart, DataSetReadingContext& ds);
-		void copyValuesToAveragingCells(const DataSetReadingContext& ds, double weight);
+		void copyValuesToAveragingCells(const DataSetReadingContext& ds);
 		bool advanceDataSource(DataSetReadingContext& context);
 
 		datetime startTime_;

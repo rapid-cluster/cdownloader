@@ -226,23 +226,15 @@ namespace {
 			return halfWidth_ * 2;
 		}
 
+		bool contains(double epoch) const {
+			return (epoch >= midEpoch_ - halfWidth_) &&
+				(epoch <= midEpoch_ + halfWidth_);
+		}
+
 	private:
 		double midEpoch_;
 		double halfWidth_;
 	};
-
-	inline std::pair<Cell,bool> intersection(const Cell& c1, const Cell& c2)
-	{
-		const Cell cLower = c1.begin() < c2.begin() ? c1: c2;
-		const Cell cUpper = c1.begin() < c2.begin() ? c2: c1;
-		if (cLower.end() < cUpper.begin()) {
-			return std::make_pair(Cell{0., 0.}, false);
-		} else {
-			double min = std::max(cLower.begin(), cUpper.begin());
-			double max = std::min(cLower.end(), cUpper.end());
-			return std::make_pair(Cell::fromRange(min, max), true);
-		}
-	}
 }
 
 // this function reads next cell from the given reader (CDF file) and dumps values into the
@@ -251,7 +243,6 @@ cdownload::DataReader::CellReadStatus
 cdownload::DataReader::readNextCell(const datetime& cellStart, cdownload::DataReader::DataSetReadingContext& ds)
 {
 	const Cell outputCell = Cell::fromRange(CDF::dateTimeToEpoch(cellStart), CDF::dateTimeToEpoch(cellStart + cellLength_));
-	double weight = 1.0; // will be later modified if the cell to be read extends
 	double epoch = ds.lastReadTimeStamp;
 #ifndef NDEBUG
 	using namespace csa_time_formatting;
@@ -279,43 +270,22 @@ cdownload::DataReader::readNextCell(const datetime& cellStart, cdownload::DataRe
 		} while ((epoch < outputCell.begin()) && readOk); // we skip records with
 		// epoch == 0, which indicates absence of data
 
-		if (ds.lastReadTimeStamp <= 0 && epoch > outputCell.begin()) {
+		if (epoch > outputCell.end()) {
 			--ds.readRecordsCount;
-			return CellReadStatus::NoRecordSurviedFiltering;
+			if (ds.lastReadTimeStamp <= 0) {
+				return CellReadStatus::NoRecordSurviedFiltering;
+			} else {
+				break;
+			}
 		}
-		const Cell previousDatasetCell {ds.lastReadTimeStamp, (epoch - ds.lastReadTimeStamp)/2};
-		const Cell currentDatasetCell {epoch, (epoch - ds.lastReadTimeStamp)/2};
-#ifndef NDEBUG
-		std::string lastWroteTimeStampString = CDF::epochToString(ds.lastWroteTimeStamp);
-		std::string previousDatasetCellString = CDF::epochToString(previousDatasetCell.begin()) + " : " +
-			CDF::epochToString(previousDatasetCell.end());
-
-		std::string currentDatasetCellString =
-			CDF::epochToString(currentDatasetCell.begin()) + " : " +
-			CDF::epochToString(currentDatasetCell.end());
-#endif
 		ds.lastReadTimeStamp = epoch;
-
-		std::pair<Cell,bool> intersectionWithPrevious = intersection(previousDatasetCell, outputCell);
-		std::pair<Cell,bool> intersectionWithCurrent = intersection(currentDatasetCell, outputCell);
-
-		if (ds.lastWeight < 1 && ds.lastWeight > 0 && intersectionWithPrevious.second) {// we did not skip any cell
-			// copy leftover of the cell, see below
-			copyValuesToAveragingCells(ds, intersectionWithPrevious.first.width() / outputCell.width());
-		}
 
 		readOk = ds.reader->readRecord(ds.readRecordsCount - 1, true); // we've read timestamp already
 		if (!readOk) {
 			return CellReadStatus::ReadError;
 		}
 
-		// statistical weight is proportional to
-		// the fraction of the DS cell which is inside our current cell
-		weight = intersectionWithCurrent.first.width() / outputCell.width();
-		if (!(weight > 0)) {
-			ds.lastWeight = 0;
-			break;
-		}
+		assert(outputCell.contains(epoch));
 
 		bool filtersPassed = true;
 		// the record was read successfully and belongs to the current output cell -> test by filters
@@ -327,7 +297,6 @@ cdownload::DataReader::readNextCell(const datetime& cellStart, cdownload::DataRe
 		}
 
 		if (!filtersPassed) {
-			ds.lastWeight = 0; // this is too prevent making the current record into the next cell
 			continue;
 		} else {
 			anyRecordSurviedFiltering = true;
@@ -336,11 +305,7 @@ cdownload::DataReader::readNextCell(const datetime& cellStart, cdownload::DataRe
 		// warning: it is important to set lastReadTimeStamp after filtering!
 		// otherwise we might consider filtered out record as valid one on the next cycle step
 
-		assert(weight > 0);
-		assert(weight <= 1.);
-		copyValuesToAveragingCells(ds, weight);
-		ds.lastWeight = weight;
-		ds.lastWroteTimeStamp = epoch;
+		copyValuesToAveragingCells(ds);
 	} while (outputCell.end() > epoch); // which means that currentDatasetCell completely falls inside of outputCell
 	return anyRecordSurviedFiltering ? CellReadStatus::OK : CellReadStatus::NoRecordSurviedFiltering;
 
@@ -352,7 +317,7 @@ cdownload::datetime cdownload::DataReader::cellMidTime() const
 	return startTime_ + cellLength_ / 2;
 }
 
-void cdownload::DataReader::copyValuesToAveragingCells(const cdownload::DataReader::DataSetReadingContext& ds, double weight)
+void cdownload::DataReader::copyValuesToAveragingCells(const cdownload::DataReader::DataSetReadingContext& ds)
 {
 	// test finished successfully -> append to the averaging cell
 		// TODO: optimize inner loops
@@ -366,17 +331,17 @@ void cdownload::DataReader::copyValuesToAveragingCells(const cdownload::DataRead
 		switch (f.dataType()) {
 			case FieldDesc::DataType::Real:
 				for (std::size_t i = 0; i < f.elementCount(); ++i) {
-					av[i].add(f.getReal(bufferPointers_, i), weight);
+					av[i].add(f.getReal(bufferPointers_, i));
 				}
 				break;
 			case FieldDesc::DataType::SignedInt:
 				for (std::size_t i = 0; i < f.elementCount(); ++i) {
-					av[i].add(f.getLong(bufferPointers_, i), weight);
+					av[i].add(f.getLong(bufferPointers_, i));
 				}
 				break;
 			case FieldDesc::DataType::UnsignedInt:
 				for (std::size_t i = 0; i < f.elementCount(); ++i) {
-					av[i].add(f.getULong(bufferPointers_, i), weight);
+					av[i].add(f.getULong(bufferPointers_, i));
 				}
 				break;
 			default:
@@ -392,8 +357,6 @@ cdownload::DataReader::DataSetReadingContext::DataSetReadingContext()
 	, readRecordsCount(0)
 	, timestampVariableIndex(0)
 	, lastReadTimeStamp(0)
-	, lastWroteTimeStamp(0)
-	, lastWeight(-1.)
 	, filters()
 	, eof(false)
 {
@@ -412,9 +375,7 @@ cdownload::DataReader::DataSetReadingContext::DataSetReadingContext(const Datase
 	, indiciesInCells(indiciesInCellsParam)
 	, readRecordsCount(0)
 	, timestampVariableIndex(aTimestampVariableIndex)
-	, lastReadTimeStamp(0)
-	, lastWroteTimeStamp(0)
-	, lastWeight(-1.)
+	, lastReadTimeStamp(-1)
 	, filters(filtersParam)
 	, eof(false)
 	, datasource(adatasource)
