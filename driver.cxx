@@ -291,7 +291,7 @@ void cdownload::Driver::doTask()
 // 			                        << currentChunk.endTime << ']' << std::endl;
 
 	while (!reader.eof() && !reader.fail()) {
-		if (reader.readNextCell()) {
+		for (;reader.readNextCell(); ++cellNo) {
 			bool cellPassedFiltering = true;
 			for (const auto& filter: averageDataFilters) {
 				if (!filter->test(averagingCells)) {
@@ -304,7 +304,6 @@ void cdownload::Driver::doTask()
 					writer->write(cellNo, reader.cellMidTime(), averagingCells);
 				}
 			}
-			++cellNo;
 		}
 	}
 }
