@@ -54,13 +54,16 @@ bool cdownload::Filters::PlasmaSheetModeFilter::test(const std::vector<const voi
 }
 
 cdownload::Filters::PlasmaSheet::PlasmaSheet()
-	: base(6)
+	: base(7)
 	, H1density_(addField("density__C4_CP_CIS-CODIF_HS_H1_MOMENTS"))
 	, H1T_(addField("T__C4_CP_CIS-CODIF_HS_H1_MOMENTS"))
 	, O1density_(addField("density__C4_CP_CIS-CODIF_HS_O1_MOMENTS"))
 	, O1T_(addField("T__C4_CP_CIS-CODIF_HS_O1_MOMENTS"))
 	, BMag_(addField("B_mag__C4_CP_FGM_SPIN"))
 	, sc_pos_xyz_gse_(addField("sc_pos_xyz_gse__C4_CP_FGM_SPIN"))
+#ifdef USE_HIA_DENSITY
+	, hiaH1density_(addField("density__C1_CP_CIS-HIA_ONBOARD_MOMENTS"))
+#endif
 {
 }
 
@@ -94,6 +97,17 @@ bool cdownload::Filters::PlasmaSheet::test(const std::vector<AveragedVariable>& 
 	constexpr const double RE = 6371;
 
 	if (std::sqrt(sqr(pos[0].mean()) + sqr(pos[1].mean()) + sqr(pos[2].mean())) < 4 * RE) {
+		return false;
+	}
+
+	// proton density is greater than 2 cm-3
+	const double MIN_H1_DENSITY_IN_PLASMASHEET = 2.;
+#ifdef USE_HIA_DENSITY
+	const Field& h1densityFiled = hiaH1density_;
+#else
+	const Field& h1densityFiled = H1density_;
+#endif
+	if (h1densityFiled.data(line)[0].mean() < MIN_H1_DENSITY_IN_PLASMASHEET) {
 		return false;
 	}
 

@@ -2,6 +2,7 @@
 #define CDOWNLOAD_FILTER_PLASMASHEET_HXX
 
 #include "../filter.hxx"
+#include "config.h"
 
 namespace cdownload {
 namespace Filters {
@@ -28,6 +29,9 @@ namespace Filters {
 		const Field& O1T_;
 		const Field& BMag_;
 		const Field& sc_pos_xyz_gse_;
+#ifdef USE_HIA_DENSITY
+		const Field& hiaH1density_;
+#endif
 	};
 }
 }
