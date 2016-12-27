@@ -84,6 +84,9 @@ void cdownload::Parameters::setExpansionDictFile(const path& fileName) {
 }
 
 void cdownload::Parameters::setTimeRange(const datetime& startDate, const datetime& endDate) {
+	if (endDate <= startDate) {
+		throw std::runtime_error("start date may not be lower than end date");
+	}
 	startDate_ = startDate;
 	endDate_ = endDate;
 }
