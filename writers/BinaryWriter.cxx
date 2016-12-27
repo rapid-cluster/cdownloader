@@ -94,14 +94,12 @@ void cdownload::BinaryWriter::truncate()
 void cdownload::BinaryWriter::write(std::size_t cellNumber, const datetime& dt,
                                    const std::vector<AveragedVariable>& cells)
 {
-	using namespace cdownload::csa_time_formatting;
 
 	std::fwrite(&cellNumber, sizeof(std::size_t), 1, output_.get());
 
-	static const datetime EPOCH = makeDateTime(1970, 1, 1, 0, 0, 0.);
-	const auto dtMillisec = (dt-EPOCH).total_milliseconds();
+	const auto dtSeconds = dt.seconds();
 
-	std::fwrite(&dtMillisec, sizeof(dtMillisec), 1, output_.get());
+	std::fwrite(&dtSeconds, sizeof(dtSeconds), 1, output_.get());
 
 	struct CellValues {
 		double mean;
@@ -152,7 +150,7 @@ void cdownload::BinaryWriter::writeHeader()
 	headerFile << "CellNo <[" <<
 		datatypenaming::NATIVE_UNSIGNED_INT << sizeof(std::size_t) * CHAR_BIT << "]>\t" <<
 		"MidTime <[" <<
-		datatypenaming::NATIVE_UNSIGNED_INT << sizeof(decltype(timeduration().total_milliseconds())) * CHAR_BIT << "]>";
+		datatypenaming::NATIVE_REAL << sizeof(decltype(timeduration().seconds())) * CHAR_BIT << "]>";
 	for (const FieldDesc& f: fields()) {
 		printFieldHeader(headerFile, f.name().name(), f.elementCount());
 	}
@@ -162,7 +160,7 @@ void cdownload::BinaryWriter::writeHeader()
 
 void cdownload::BinaryWriter::initialize(const std::vector<Field>& fields)
 {
-	stride_ = sizeof(std::size_t) + sizeof(decltype(timeduration().total_milliseconds()));
+	stride_ = sizeof(std::size_t) + sizeof(decltype(timeduration().seconds()));
 		const std::size_t elementSize = (sizeof(AveragingRegister::mean_value_type) +
 				sizeof(AveragingRegister::counter_type) +
 				sizeof(AveragingRegister::stddev_value_type));

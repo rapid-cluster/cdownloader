@@ -36,8 +36,8 @@ int main(int argc, char** argv)
 		std::string outputDir = "/tmp/test-product-" + ds;
 		std::ofstream of (outputDir.c_str());
 		downloader.beginDownloading(ds, of,
-		                    datetime(date(2014, 10, 1), datetime::time_duration_type()),
-		                    datetime(date(2014, 10, 2), boost::posix_time::hours(0) + boost::posix_time::minutes(0) + boost::posix_time::seconds(0)));
+		                    makeDateTime(2014, 10, 1, 0, 0, 0),
+		                    makeDateTime(2014, 10, 2, 0, 0, 0));
 		downloader.waitForFinished();
 
 		path unpackedDir = path("/tmp/unpacked") / path(ds);

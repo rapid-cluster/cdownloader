@@ -29,6 +29,10 @@
 
 #include "config.h"
 
+#ifdef DEBUG_METADATA_ACTIONS
+	#define LOG_METADATA_ACTIONS
+#endif
+
 #ifdef LOG_METADATA_ACTIONS
 	#include <boost/log/trivial.hpp>
 #endif
@@ -82,8 +86,8 @@ namespace {
 		::strptime(startString.c_str(), "%Y-%m-%d %H:%M:%S.%f", &tm);
 		datetime end = std::chrono::system_clock::from_time_t(timegm(&tm));
 #else
-		cdownload::datetime start = boost::posix_time::time_from_string(startString);
-		cdownload::datetime end = boost::posix_time::time_from_string(endString);
+		cdownload::datetime start = cdownload::datetime::fromString(startString);
+		cdownload::datetime end = cdownload::datetime::fromString(endString);
 
 #endif
 

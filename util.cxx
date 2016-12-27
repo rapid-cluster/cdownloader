@@ -85,27 +85,6 @@ cdownload::path cdownload::homeDirectory()
 	return path(homedir);
 }
 
-std::ostream& cdownload::csa_time_formatting::operator<<(std::ostream& os, const datetime& dt)
-{
-	os << boost::posix_time::to_iso_extended_string(dt) << 'Z';
-	return os;
-}
-
-std::istream& cdownload::csa_time_formatting::operator>>(std::istream& is, datetime& dt)
-{
-	std::string tmp;
-	std::getline(is, tmp, 'Z');
-	dt = boost::date_time::parse_delimited_time<boost::posix_time::ptime>(tmp, 'T');
-	return is;
-}
-
-cdownload::datetime cdownload::makeDateTime(unsigned int year, unsigned int month, unsigned int day,
-                                            unsigned int hours, unsigned int minutes, double seconds)
-{
-	return {boost::gregorian::date(year, month, day),
-			timeduration(static_cast<int>(hours), static_cast<int>(minutes), seconds)};
-}
-
 namespace {
 	cdownload::string convertWildcardToRegex(const cdownload::string& wildcard)
 	{

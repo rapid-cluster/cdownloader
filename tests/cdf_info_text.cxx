@@ -17,17 +17,17 @@ int main(int /*argc*/, char** /*argv*/)
 {
 
 	logging::core::get()->set_filter
-    (
-        logging::trivial::severity >= logging::trivial::debug
-    );
+	(
+		logging::trivial::severity >= logging::trivial::debug
+	);
 
 	DataDownloader downloader;
 
 	{
 		std::ofstream of ("/tmp/test-product-1");
 		downloader.beginDownloading("C4_CP_RAP_ISPCT_CNO", of,
-			datetime(date(2014, 10, 1), datetime::time_duration_type()),
-			datetime(date(2014, 10, 2), boost::posix_time::hours(23)+boost::posix_time::minutes(59)+boost::posix_time::seconds(59)));
+		                            makeDateTime(2014, 10, 1, 0, 0, 0),
+		                            makeDateTime(2014, 10, 2, 23, 59, 59));
 		downloader.waitForFinished();
 	}
 
@@ -48,6 +48,4 @@ int main(int /*argc*/, char** /*argv*/)
 		const CDF::Variable v = cdf.variable(i);
 		std::cout << CDF::VariableMetaPrinter(v, 1) << std::endl;
 	}
-
 }
-

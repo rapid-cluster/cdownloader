@@ -31,9 +31,6 @@
 
 namespace cdownload {
 
-
-	datetime makeDateTime(unsigned year, unsigned month, unsigned day, unsigned hours = 0, unsigned minutes = 0, double seconds = 0.);
-
 	class ProductName {
 		static constexpr const char* delimiter = "__";
 
@@ -153,11 +150,6 @@ namespace cdownload {
 		return collection_printer<List, List&&, char, char>(std::move(list), delim, opening, closing);
 	}
 
-
-namespace csa_time_formatting {
-	std::ostream& operator<<(std::ostream& os, const datetime& dt);
-	std::istream& operator>>(std::istream& is, datetime& dt);
-}
 
 	std::vector<std::string>
 	expandWildcardsCaseSensitive(const std::vector<std::string>& wildcards,

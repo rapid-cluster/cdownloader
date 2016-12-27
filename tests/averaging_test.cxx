@@ -15,7 +15,7 @@ void testRegister(const std::vector<Measurement>& measurements, const std::strin
 
 	AveragingRegister reg;
 	for (const Measurement& m: measurements) {
-		reg.add(m.value, m.weight);
+		reg.add(m.value);
 	}
 
 	std::cout << "Test: " << testName

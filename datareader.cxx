@@ -242,10 +242,9 @@ namespace {
 cdownload::DataReader::CellReadStatus
 cdownload::DataReader::readNextCell(const datetime& cellStart, cdownload::DataReader::DataSetReadingContext& ds)
 {
-	const Cell outputCell = Cell::fromRange(CDF::dateTimeToEpoch(cellStart), CDF::dateTimeToEpoch(cellStart + cellLength_));
+	const Cell outputCell = Cell::fromRange(cellStart.seconds(), (cellStart + cellLength_).seconds());
 	double epoch = ds.lastReadTimeStamp;
 #ifndef NDEBUG
-	using namespace csa_time_formatting;
 	std::string outputCellString = boost::lexical_cast<std::string>(cellStart) + " + "
 		+ boost::lexical_cast<std::string>(cellLength_);
 	std::string epochCellString;
@@ -265,7 +264,7 @@ cdownload::DataReader::readNextCell(const datetime& cellStart, cdownload::DataRe
 			}
 			epoch = *static_cast<const double*>(ds.reader->bufferForVariable(ds.timestampVariableIndex)); // EPCH16?
 #ifndef NDEBUG
-		epochCellString = CDF::epochToString(epoch);
+		epochCellString = datetime(epoch).CSAString();
 #endif
 		} while ((epoch < outputCell.begin()) && readOk); // we skip records with
 		// epoch == 0, which indicates absence of data

@@ -48,8 +48,6 @@ void cdownload::ASCIIWriter::truncate()
 void cdownload::ASCIIWriter::write(std::size_t cellNumber, const datetime& dt,
                                    const std::vector<AveragedVariable>& cells)
 {
-	using namespace cdownload::csa_time_formatting;
-
 	(*output_) << cellNumber << '\t' << dt;
 	for (const Field& f: fields()) {
 		const AveragedVariable& av = f.data(cells);

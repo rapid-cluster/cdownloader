@@ -161,10 +161,6 @@ namespace cdownload {
 		bool eof_;
 		std::size_t timeStampVariableIndex_;
 	};
-
-	datetime epochToDateTime(double epoch);
-	double dateTimeToEpoch(const datetime& dt);
-	std::string epochToString(double epoch);
 }
 }
 

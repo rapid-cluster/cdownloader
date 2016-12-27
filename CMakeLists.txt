@@ -44,6 +44,8 @@ cdfreader.cxx
 commonDefinitions.hxx
 chunkdownloader.hxx
 chunkdownloader.cxx
+csatime.hxx
+csatime.cxx
 datareader.hxx
 datareader.cxx
 datasource.hxx
@@ -91,7 +93,6 @@ target_link_libraries(cdownload
 		Boost::log
 		CDF::CDF
 	PUBLIC
-		Boost::date_time
 		Boost::filesystem
 		Boost::system
 		jsoncpp_lib

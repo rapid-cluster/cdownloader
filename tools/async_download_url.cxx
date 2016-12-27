@@ -1,5 +1,6 @@
 #include "../metadata.hxx"
 #include "../util.hxx"
+#include <iostream>
 #include <sstream>
 
 int main(int argc, char** argv) {
@@ -9,7 +10,6 @@ int main(int argc, char** argv) {
 	}
 
 	cdownload::Metadata meta;
-	using namespace cdownload::csa_time_formatting;
 
 	for (int i = 1; i < argc; ++i) {
 		cdownload::DatasetName ds(argv[i]);

@@ -13,7 +13,7 @@ void printDateTime(std::ostream& os, const cdownload::datetime& d)
 	auto tgm = std::gmtime(&t);
 	os << std::put_time(tgm, "%FT%TZ");
 #else
-	os << boost::posix_time::to_iso_extended_string(d) << 'Z';
+	os << d.isoExtendedString() << 'Z';
 #endif
 }
 

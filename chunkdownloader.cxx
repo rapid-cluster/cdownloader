@@ -127,7 +127,7 @@ cdownload::ChunkDownloader::downloadChunk(const datetime& startTime, const timed
 	// if several downloads are going in parallel, we need a unique ID for each
 	// to prevent file overwriting. Let's generate one from startTime
 	// as total number of seconds from the start_
-	const std::string chunkId = boost::lexical_cast<std::string>((startTime - start_).total_seconds());
+	const std::string chunkId = boost::lexical_cast<std::string>((startTime - start_).seconds());
 
 	std::vector<path> outputFileNames;
 	std::vector<std::unique_ptr<std::ofstream>> outputStreams;

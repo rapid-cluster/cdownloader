@@ -100,6 +100,7 @@ bool cdownload::Filters::PlasmaSheet::test(const std::vector<AveragedVariable>& 
 		return false;
 	}
 
+#if 0
 	// proton density is greater than 2 cm-3
 	const double MIN_H1_DENSITY_IN_PLASMASHEET = 2.;
 #ifdef USE_HIA_DENSITY
@@ -110,6 +111,7 @@ bool cdownload::Filters::PlasmaSheet::test(const std::vector<AveragedVariable>& 
 	if (h1densityFiled.data(line)[0].mean() < MIN_H1_DENSITY_IN_PLASMASHEET) {
 		return false;
 	}
+#endif
 
 	// 0.2 <plasma beta< 10
 	// beta is defined as ratio between plasma pressure and magnetic pressure

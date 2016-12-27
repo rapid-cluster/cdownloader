@@ -25,7 +25,7 @@ int main(int /*argc*/, char** /*argv*/)
 	datasets.emplace_back("D2_SP_PEA");
 
 	datetime availableStartDateTime = makeDateTime(1999, 1, 1);
-	datetime availableEndDateTime = boost::posix_time::second_clock::universal_time();
+	datetime availableEndDateTime = datetime::utcNow();
 
 	Metadata meta;
 

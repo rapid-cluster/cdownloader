@@ -88,8 +88,6 @@ namespace {
 	}
 }
 
-using namespace cdownload::csa_time_formatting;
-
 cdownload::Driver::Driver(const cdownload::Parameters& params)
 	: params_{params}
 {
@@ -104,8 +102,6 @@ void cdownload::Driver::doTask()
 	std::vector<std::shared_ptr<Filter> > allFilters;
 	std::copy(rawFilters.begin(), rawFilters.end(), std::back_inserter(allFilters));
 	std::copy(averageDataFilters.begin(), averageDataFilters.end(), std::back_inserter(allFilters));
-
-	using namespace csa_time_formatting;
 
 	path tmpDirName = params_.workDir() / boost::filesystem::unique_path();
 	boost::filesystem::create_directories(tmpDirName);
@@ -129,7 +125,7 @@ void cdownload::Driver::doTask()
 	DataDownloader downloader;
 	// sure enough this is before Cluster II launch date
 	datetime availableStartDateTime = makeDateTime(1999, 1, 1);
-	datetime availableEndDateTime = boost::posix_time::second_clock::universal_time();
+	datetime availableEndDateTime = datetime::utcNow();
 
 	std::vector<DatasetName> requiredDatasets = collectRequireddDatasets(params_.outputs(), allFilters);
 

@@ -24,18 +24,22 @@
 #define CDOWNLOAD_COMMON_DEFINITIONS_HXX
 
 #include <string>
-#include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/filesystem/path.hpp>
 
 namespace cdownload {
 
 	using string = std::string;
+}
+
+#include "csatime.hxx"
+
+namespace cdownload {
 
 	using DatasetName = std::string;
 
-	using datetime = boost::posix_time::ptime;
-	using date = boost::gregorian::date;
-	using timeduration = boost::posix_time::time_duration;
+	using datetime = DateTime;
+// 	using date = boost::gregorian::date;
+	using timeduration = TimeDuration;
 
 	using path = boost::filesystem::path;
 }

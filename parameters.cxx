@@ -69,7 +69,7 @@ const std::vector<cdownload::ProductName>& cdownload::Output::productsForDataset
 
 cdownload::Parameters::Parameters(const path& outputDir, const path& workDir, const path& cacheDir)
 	: startDate_{makeDateTime(2000, 7, 16)}
-	, endDate_{boost::posix_time::second_clock::universal_time()}
+	, endDate_{datetime::utcNow()}
 	, timeInterval_{0, 1, 0}
 	, outputs_{}
 	, expansionDictionaryFile_{"/usr/share/csadownloader/expansion.dict"}

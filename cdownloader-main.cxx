@@ -30,7 +30,6 @@ namespace posix_time {
 	              const std::vector<std::string>& values,
 	              ptime* /*target_type*/, int)
 	{
-		using namespace cdownload::csa_time_formatting;
 		using namespace boost::program_options;
 
 		// Extract the first string from 'values'. If there is more than
@@ -39,7 +38,7 @@ namespace posix_time {
 		std::istringstream is(s);
 
 		cdownload::datetime dt;
-		cdownload::csa_time_formatting::operator>>(is, dt);
+		is >> dt;
 		v = boost::any(dt);
 	}
 
@@ -47,7 +46,6 @@ namespace posix_time {
 	              const std::vector<std::string>& values,
 	              cdownload::timeduration* /*target_type*/, int)
 	{
-		using namespace cdownload::csa_time_formatting;
 		using namespace boost::program_options;
 
 		// Extract the first string from 'values'. If there is more than
@@ -121,7 +119,7 @@ int main(int ac, char** av)
 
 	timeOptions.add_options()
 	    ("start", po::value<cdownload::datetime>()->default_value(cdownload::makeDateTime(2000, 8, 10)), "Start time")
-	    ("end", po::value<cdownload::datetime>()->default_value(boost::posix_time::second_clock::universal_time()), "End time")
+	    ("end", po::value<cdownload::datetime>()->default_value(cdownload::datetime::utcNow()), "End time")
 	    ("cell-size", po::value<cdownload::timeduration>()->required(), "Size of the averaging cell")
 	;
 	desc.add(timeOptions);

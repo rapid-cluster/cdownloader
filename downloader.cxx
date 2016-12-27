@@ -302,8 +302,8 @@ std::string cdownload::DataDownloader::buildRequest(const std::string& datasetNa
 	std::time_t endTime = std::chrono::system_clock::to_time_t(endDate);
 	auto endTimeUTC = std::gmtime(&endTime);
 #else
-	std::string stTimeString = boost::posix_time::to_iso_extended_string(startDate);
-	std::string stEndString = boost::posix_time::to_iso_extended_string(endDate);
+	std::string stTimeString = startDate.isoExtendedString();
+	std::string stEndString = endDate.isoExtendedString();
 #endif
 
 	std::ostringstream res;

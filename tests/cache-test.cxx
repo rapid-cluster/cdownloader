@@ -4,10 +4,11 @@
 #include "../metadata.hxx"
 #include "../util.hxx"
 
+#include <iostream>
+
 int main(int /*argc*/, char** /*argv*/)
 {
 	using namespace cdownload;
-	using namespace cdownload::csa_time_formatting;
 
 	path cachDir = "/home/eugene/data/Cluster/data/cache";
 
