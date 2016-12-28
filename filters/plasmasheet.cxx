@@ -36,7 +36,7 @@
 #include <cmath>
 
 cdownload::Filters::PlasmaSheetModeFilter::PlasmaSheetModeFilter()
-	: base(1)
+	: base("PlasmaSheetMode", 1)
 	, cis_mode_(addField("cis_mode__C4_CP_CIS_MODES"))
 //  , cis_mode_key_(addField("cis_mode_key__C4_CP_CIS_MODES"))
 {
@@ -54,7 +54,7 @@ bool cdownload::Filters::PlasmaSheetModeFilter::test(const std::vector<const voi
 }
 
 cdownload::Filters::PlasmaSheet::PlasmaSheet()
-	: base(7)
+	: base("PlasmaSheet", 7)
 	, H1density_(addField("density__C4_CP_CIS-CODIF_HS_H1_MOMENTS"))
 	, H1T_(addField("T__C4_CP_CIS-CODIF_HS_H1_MOMENTS"))
 	, O1density_(addField("density__C4_CP_CIS-CODIF_HS_O1_MOMENTS"))

@@ -8,6 +8,11 @@
 #include <boost/log/trivial.hpp>
 #endif
 
+cdownload::Filters::BadDataFilter::BadDataFilter()
+	: base("BadData")
+{
+}
+
 bool cdownload::Filters::BadDataFilter::test(const std::vector<const void*>& line, const DatasetName& ds) const
 {
 	for (const Field& f: availableProducts()) {

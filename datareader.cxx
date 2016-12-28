@@ -178,6 +178,9 @@ bool cdownload::DataReader::readNextCell()
 		CellReadStatus cellReadStatus = readNextCell(startTime_, dsp.second);
 		if (cellReadStatus == CellReadStatus::NoRecordSurviedFiltering) {
 			anyCellWasReadSuccesfully = false;
+#ifdef DEBUG_LOG_EVERY_CELL
+			BOOST_LOG_TRIVIAL(trace) << "\t NRSF in dataset " << dsp.second.datasetName;
+#endif
 			break;
 		}
 		if (cellReadStatus == CellReadStatus::EoF) {

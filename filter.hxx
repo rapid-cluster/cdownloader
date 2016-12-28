@@ -44,8 +44,11 @@ namespace cdownload {
 		std::vector<ProductName> requiredProducts() const;
 		virtual void initialize(const std::vector<Field>& availableProducts);
 
+		const std::string name() const {
+			return name_;
+		}
 	protected:
-		Filter(std::size_t maxFieldsCount = 0);
+		Filter(const std::string& name, std::size_t maxFieldsCount = 0);
 
 		const Field& addField(const std::string& productName);
 		const Field& field(const std::string& name);
@@ -57,6 +60,7 @@ namespace cdownload {
 		std::vector<Field> activeFields_; //! for requiredProducts()
 		std::vector<Field> availableProducts_;
 		std::size_t maxFieldsCount_;
+		std::string name_;
 	};
 
 	/**
@@ -67,7 +71,7 @@ namespace cdownload {
 	public:
 		virtual bool test(const std::vector<const void*>& line, const DatasetName& ds) const = 0;
 	protected:
-		RawDataFilter(std::size_t maxFieldsCount = 0);
+		RawDataFilter(const std::string& name, std::size_t maxFieldsCount = 0);
 	};
 
 	/**
@@ -78,7 +82,7 @@ namespace cdownload {
 	public:
 		virtual bool test(const std::vector<AveragedVariable>& line) const = 0;
 	protected:
-		AveragedDataFilter(std::size_t maxFieldsCount = 0);
+		AveragedDataFilter(const std::string& name, std::size_t maxFieldsCount = 0);
 	};
 }
 

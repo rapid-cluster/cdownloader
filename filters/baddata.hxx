@@ -6,7 +6,9 @@
 namespace cdownload {
 namespace Filters {
 	class BadDataFilter: public RawDataFilter {
+		using base = RawDataFilter;
 	public:
+		BadDataFilter();
 		bool test(const std::vector<const void*>& line, const DatasetName& ds) const override;
 	};
 }

@@ -24,8 +24,9 @@
 
 #include <algorithm>
 
-cdownload::Filter::Filter(std::size_t maxFieldsCount)
+cdownload::Filter::Filter(const std::string& name, std::size_t maxFieldsCount)
 	: maxFieldsCount_{maxFieldsCount}
+	, name_{name}
 {
 	activeFields_.reserve(maxFieldsCount_);
 }
@@ -73,12 +74,12 @@ const cdownload::Field& cdownload::Filter::field(const std::string& name) {
 	throw std::runtime_error("There is no field with name '" + name + "' in this filter");
 }
 
-cdownload::RawDataFilter::RawDataFilter(std::size_t maxFieldsCount)
-	: Filter(maxFieldsCount)
+cdownload::RawDataFilter::RawDataFilter(const std::string& name, std::size_t maxFieldsCount)
+	: Filter(name, maxFieldsCount)
 {
 }
 
-cdownload::AveragedDataFilter::AveragedDataFilter(std::size_t maxFieldsCount)
-	: Filter(maxFieldsCount)
+cdownload::AveragedDataFilter::AveragedDataFilter(const std::string& name, std::size_t maxFieldsCount)
+	: Filter(name, maxFieldsCount)
 {
 }

@@ -23,7 +23,7 @@
 #include "./quality.hxx"
 
 cdownload::Filters::QualityFilter::QualityFilter(const cdownload::ProductName& product, int minRequiredQuality)
-	: base(1)
+	: base("Quality", 1)
 	, field_(addField(product.name()))
 	, minQuality_{minRequiredQuality}
 {
