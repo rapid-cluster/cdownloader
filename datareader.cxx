@@ -33,6 +33,7 @@
 #endif
 #include <boost/log/trivial.hpp>
 
+#include "config.h"
 
 constexpr const std::size_t INVALID_INDEX = static_cast<std::size_t>(-1);
 
@@ -167,6 +168,10 @@ bool cdownload::DataReader::readNextCell()
 		return false;
 	}
 
+#ifdef DEBUG_LOG_EVERY_CELL
+	BOOST_LOG_TRIVIAL(trace) << "Reading cell " << startTime_ << " +- " << cellLength_;
+#endif
+
 	bool anyCellWasReadSuccesfully = false;
 	bool eofInOneOfTheDatasets = false;
 	for (auto& dsp: readers_) {
@@ -181,6 +186,9 @@ bool cdownload::DataReader::readNextCell()
 		}
 		anyCellWasReadSuccesfully |= (cellReadStatus == CellReadStatus::OK);
 	}
+#ifdef DEBUG_LOG_EVERY_CELL
+	BOOST_LOG_TRIVIAL(trace) << "Cell " << startTime_ << " +- " << cellLength_ << " read " << anyCellWasReadSuccesfully;
+#endif
 	startTime_ += cellLength_;
 	if (eofInOneOfTheDatasets) {
 		eof_ = true;
@@ -197,6 +205,7 @@ bool cdownload::DataReader::readNextCell()
 		}
 		eof_ = eof;
 	}
+
 	return anyCellWasReadSuccesfully;
 }
 

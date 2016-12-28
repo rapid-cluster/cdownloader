@@ -46,6 +46,8 @@
 #include <algorithm>
 #include <set>
 
+#include "config.h"
+
 
 namespace {
 
@@ -299,12 +301,19 @@ void cdownload::Driver::doTask()
 			for (const auto& filter: averageDataFilters) {
 				if (!filter->test(averagingCells)) {
 					cellPassedFiltering = false;
+#ifdef DEBUG_LOG_EVERY_CELL
+					BOOST_LOG_TRIVIAL(trace) << "Rejecting Cell " << cellNo << " (" << reader.cellMidTime() << ")";
+#endif
 					break;
 				}
 			}
 			if (cellPassedFiltering) {
+				const datetime cellMidTime = reader.cellMidTime();
+#ifdef DEBUG_LOG_EVERY_CELL
+				BOOST_LOG_TRIVIAL(trace) << "Writing Cell " << cellMidTime;
+#endif
 				for (const std::unique_ptr<Writer>& writer: writers) {
-					writer->write(cellNo, reader.cellMidTime(), averagingCells);
+					writer->write(cellNo, cellMidTime, averagingCells);
 				}
 			}
 		}
