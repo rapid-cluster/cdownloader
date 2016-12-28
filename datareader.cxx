@@ -31,6 +31,8 @@
 #ifndef NDEBUG
 #include <boost/lexical_cast.hpp>
 #endif
+#include <boost/log/trivial.hpp>
+
 
 constexpr const std::size_t INVALID_INDEX = static_cast<std::size_t>(-1);
 
@@ -102,6 +104,10 @@ cdownload::DataReader::DataReader(const datetime& startTime, const datetime& end
 		}
 
 		std::unique_ptr<CDF::Reader> reader {new CDF::Reader {cdf, variablesToReadFromDataset}};
+		auto indexToStartFrom = reader->findTimestamp(startTime_.milliseconds(), 0);
+		if (indexToStartFrom != 0) {
+			BOOST_LOG_TRIVIAL(debug) << "Fast-forward to record " << indexToStartFrom << " for " << p.first;
+		}
 
 		const std::size_t firstVarIndex = timestampIsInOutput ? 0 : 1;
 		for (std::size_t i = firstVarIndex; i < variablesToReadFromDataset.size(); ++i) {
@@ -129,6 +135,7 @@ cdownload::DataReader::DataReader(const datetime& startTime, const datetime& end
 
 		DataSetReadingContext st (p.first, std::move(reader), variableIndicies,timeStampVarIndex,
 			filtersForDataset, datasource, variablesToReadFromDataset);
+		st.readRecordsCount = indexToStartFrom;
 
 		readers_[p.first] = std::move(st);
 	}
@@ -242,7 +249,7 @@ namespace {
 cdownload::DataReader::CellReadStatus
 cdownload::DataReader::readNextCell(const datetime& cellStart, cdownload::DataReader::DataSetReadingContext& ds)
 {
-	const Cell outputCell = Cell::fromRange(cellStart.seconds(), (cellStart + cellLength_).seconds());
+	const Cell outputCell = Cell::fromRange(cellStart.milliseconds(), (cellStart + cellLength_).milliseconds());
 	double epoch = ds.lastReadTimeStamp;
 #ifndef NDEBUG
 	std::string outputCellString = boost::lexical_cast<std::string>(cellStart) + " + "
