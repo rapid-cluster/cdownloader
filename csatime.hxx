@@ -35,10 +35,11 @@ namespace cdownload {
 		TimeDuration(double milliseconds = 0.)
 			: milliseconds_{milliseconds}
 		{
+			updateStringRep();
 		}
 
 		TimeDuration(int hours, int minutes, int seconds, int msec = 0)
-			: milliseconds_{(hours* 3600. + minutes* 60. + seconds)*1e3 + msec}
+			: TimeDuration{(hours* 3600. + minutes* 60. + seconds)*1e3 + msec}
 		{
 		}
 
@@ -56,29 +57,41 @@ namespace cdownload {
 		TimeDuration& operator*=(double k)
 		{
 			milliseconds_ *= k;
+			updateStringRep();
 			return *this;
 		}
 
 		TimeDuration& operator/=(double k)
 		{
 			milliseconds_ /= k;
+			updateStringRep();
 			return *this;
 		}
 
 		TimeDuration& operator+=(TimeDuration v)
 		{
 			milliseconds_ += v.milliseconds_;
+			updateStringRep();
 			return *this;
 		}
 
 		TimeDuration& operator-=(TimeDuration v)
 		{
 			milliseconds_ -= v.milliseconds_;
+			updateStringRep();
 			return *this;
 		}
 
 	private:
 		double milliseconds_;
+#ifndef NDEBUG
+		void updateStringRep();
+#else
+		void updateStringRep(){}
+#endif
+#ifndef NDEBUG
+		std::string str_;
+#endif
 	};
 
 	inline bool operator<(TimeDuration left, TimeDuration right)
@@ -121,6 +134,7 @@ namespace cdownload {
 			: milliseconds_{milliseconds}
 		{
 			assert(milliseconds_ >= 0);
+			updateStringRep();
 		}
 
 		static DateTime fromString(const string& dt);
@@ -142,11 +156,20 @@ namespace cdownload {
 		DateTime& operator+=(TimeDuration td)
 		{
 			milliseconds_ += td.milliseconds();
+			updateStringRep();
 			return *this;
 		}
 
 	private:
+#ifndef NDEBUG
+		void updateStringRep();
+#else
+		void updateStringRep(){}
+#endif
 		double milliseconds_;
+#ifndef NDEBUG
+		std::string str_;
+#endif
 	};
 
 	inline bool operator<(DateTime left, DateTime right)

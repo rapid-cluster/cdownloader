@@ -212,3 +212,18 @@ cdownload::DateTime cdownload::makeDateTime(unsigned int year, unsigned int mont
 	}
 	return {res};
 }
+
+#ifndef NDEBUG
+void cdownload::DateTime::updateStringRep()
+{
+	str_.resize(EPOCH4_STRING_LEN);
+	encodeEPOCH4(milliseconds(), &str_[0]);
+}
+
+void cdownload::TimeDuration::updateStringRep()
+{
+	std::ostringstream os;
+	os << *this;
+	str_ = os.str();
+}
+#endif
