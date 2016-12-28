@@ -310,6 +310,9 @@ cdownload::DataReader::readNextCell(const datetime& cellStart, cdownload::DataRe
 		for (const auto& f: ds.filters) {
 			if (!f->test(bufferPointers_, ds.datasetName)) {
 				filtersPassed = false;
+#ifdef DEBUG_LOG_EVERY_CELL
+				BOOST_LOG_TRIVIAL(trace) << "\t Rejected by " << f->name() << " filter";
+#endif
 				break;
 			}
 		}
