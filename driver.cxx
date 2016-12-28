@@ -295,8 +295,8 @@ void cdownload::Driver::doTask()
 // 			BOOST_LOG_TRIVIAL(info) << "Processing chunk [" << currentChunk.startTime << ','
 // 			                        << currentChunk.endTime << ']' << std::endl;
 
-	while (!reader.eof() && !reader.fail()) {
-		for (;reader.readNextCell(); ++cellNo) {
+	for (;!reader.eof() && !reader.fail();++cellNo) {
+		if (reader.readNextCell()) {
 			bool cellPassedFiltering = true;
 			for (const auto& filter: averageDataFilters) {
 				if (!filter->test(averagingCells)) {
