@@ -144,6 +144,13 @@ void cdownload::Driver::doTask()
 	BOOST_LOG_TRIVIAL(info) << "Found available time range: ["
 	                        << availableStartDateTime << ',' << availableEndDateTime << ']';
 
+	const datetime actualStartDateTime = std::max(params_.startDate(), availableStartDateTime);
+	const datetime actualEndtDateTime = std::min(params_.endDate(), availableEndDateTime);
+
+	BOOST_LOG_TRIVIAL(info) << "Using time range: ["
+	                        << actualStartDateTime << ',' << actualEndtDateTime << ']';
+
+
 //  datetime currentChunkStartTime = availableStartDateTime;
 
 	// have to get first chunks separately in order to detect dataset products
@@ -266,7 +273,7 @@ void cdownload::Driver::doTask()
 		// 1. fast-forward cellNo
 		cellNo = lastCellNumbers[0] + 1;
 		// 2. reinitialize chunkDownloader
-		datetime startTime = availableStartDateTime + params_.timeInterval() * cellNo;
+		datetime startTime = actualStartDateTime + params_.timeInterval() * cellNo;
 		BOOST_LOG_TRIVIAL(info) << "Fast forwarding to " << startTime;
 		for (auto& dsp: datasources) {
 			dsp.second->setNextChunkStartTime(startTime);
@@ -281,7 +288,7 @@ void cdownload::Driver::doTask()
 		}
 	}
 
-	DataReader reader {availableStartDateTime, availableEndDateTime, params_.timeInterval(),
+	DataReader reader {actualStartDateTime, actualEndtDateTime, params_.timeInterval(),
 		rawFilters, datasources,  productsToRead, averagingCells, fields};
 // 			BOOST_LOG_TRIVIAL(info) << "Processing chunk [" << currentChunk.startTime << ','
 // 			                        << currentChunk.endTime << ']' << std::endl;
