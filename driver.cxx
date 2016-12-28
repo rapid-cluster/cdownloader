@@ -296,19 +296,19 @@ void cdownload::Driver::doTask()
 // 			                        << currentChunk.endTime << ']' << std::endl;
 
 	for (;!reader.eof() && !reader.fail();++cellNo) {
+		const datetime cellMidTime = reader.cellMidTime();
 		if (reader.readNextCell()) {
 			bool cellPassedFiltering = true;
 			for (const auto& filter: averageDataFilters) {
 				if (!filter->test(averagingCells)) {
 					cellPassedFiltering = false;
 #ifdef DEBUG_LOG_EVERY_CELL
-					BOOST_LOG_TRIVIAL(trace) << "Rejecting Cell " << cellNo << " (" << reader.cellMidTime() << ")";
+					BOOST_LOG_TRIVIAL(trace) << "Rejecting Cell " << cellNo << " (" << cellMidTime << ")";
 #endif
 					break;
 				}
 			}
 			if (cellPassedFiltering) {
-				const datetime cellMidTime = reader.cellMidTime();
 #ifdef DEBUG_LOG_EVERY_CELL
 				BOOST_LOG_TRIVIAL(trace) << "Writing Cell " << cellMidTime;
 #endif
