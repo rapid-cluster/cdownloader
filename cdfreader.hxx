@@ -26,15 +26,16 @@
 #include "util.hxx"
 #include "field.hxx"
 
-#include <memory>
 #include <iosfwd>
+#include <iterator>
+#include <memory>
 
 namespace cdownload {
 	/**
 	 * @brief Contains tools for parsing and reading CDF files, using the CDF library
 	 *
 	 */
-	namespace CDF {
+namespace CDF {
 
 	enum class DataType {
 		INT1        = 1L,
@@ -73,6 +74,11 @@ namespace cdownload {
 
 		std::size_t read(void* dest, std::size_t startIndex, std::size_t numRecords) const;
 
+		std::size_t recordsCount() const
+		{
+			return recordsCount_;
+		}
+
 	private:
 		Variable(File* file, std::size_t index, bool isRVar);
 		static std::size_t datatypeSize(DataType dt);
@@ -98,6 +104,7 @@ namespace cdownload {
 		const Variable& variable(std::size_t num) const;
 		const Variable& variable(const std::string& name) const;
 		std::size_t variableIndex(const std::string& name) const;
+
 	private:
 		void* cdfId() const;
 		friend class Variable;
@@ -114,6 +121,7 @@ namespace cdownload {
 		std::vector<ProductName> variableNames() const;
 		ProductName timestampVariableName() const;
 		const FieldDesc& variable(const std::string& name) const;
+
 	private:
 		static FieldDesc describeVariable(const Variable& v);
 		std::vector<FieldDesc> variables_;
@@ -140,18 +148,22 @@ namespace cdownload {
 	class Reader {
 	public:
 		Reader(const File& f, const std::vector<ProductName>& variables);
-// 		Reader(const Reader&);
+//      Reader(const Reader&);
 
-// 		Reader& operator=(const Reader&);
+//      Reader& operator=(const Reader&);
 
 		bool readRecord(std::size_t index, bool omitTimestamp = false);
 		bool readTimeStampRecord(std::size_t index);
 
 		const void* bufferForVariable(std::size_t variableIndex) const;
 
-		bool eof() const {
+		bool eof() const
+		{
 			return eof_;
 		}
+
+		std::size_t findTimestamp(double timeStamp, std::size_t startIndex);
+
 	private:
 		using BufferPtr = std::unique_ptr<char[]>;
 		std::vector<const Variable*> variables_;
@@ -160,6 +172,146 @@ namespace cdownload {
 		Info info_;
 		bool eof_;
 		std::size_t timeStampVariableIndex_;
+	};
+
+	template <class T>
+	class ConstVariableView;
+
+	template <class T>
+	class VariableConstIterator {
+	public:
+		typedef std::random_access_iterator_tag iterator_category;
+		typedef T value_type;
+		typedef std::ptrdiff_t difference_type;
+		typedef const T*   pointer;
+		typedef T& reference;
+
+		typedef VariableConstIterator<T> this_type;
+
+		value_type operator*() const
+		{
+			return value_;
+		}
+
+		operator bool() const {
+			return isIndexValid(currentIndex_);
+		}
+
+		this_type& operator++()
+		{
+			moveTo(currentIndex_ + 1); return *this;
+		}
+
+		this_type operator++(int)
+		{
+			auto temp = *this; moveTo(currentIndex_ + 1); return temp;
+		}
+
+		this_type& operator--()
+		{
+			moveTo(currentIndex_ - 1); return *this;
+		}
+
+		this_type operator--(int)
+		{
+			auto temp = *this;
+			moveTo(currentIndex_ + 1);
+			return temp;
+		}
+
+		this_type& operator+=(const ptrdiff_t& movement)
+		{
+			moveTo(currentIndex_ + movement);
+			return (*this);
+		}
+
+		this_type& operator-=(const ptrdiff_t& movement)
+		{
+			moveTo(currentIndex_ - movement);
+			return (*this);
+		}
+
+		this_type operator+(const ptrdiff_t& movement)
+		{
+			return this_type(var_, currentIndex_ + movement);
+		}
+
+		this_type operator-(const ptrdiff_t& movement)
+		{
+			return this_type(var_, currentIndex_ - movement);
+		}
+
+		std::ptrdiff_t operator-(const this_type& other)
+		{
+			assert(other.var_ == this->var_);
+			return currentIndex_ - other.currentIndex_;
+		}
+
+		bool operator==(const this_type& other) const {
+			return this->var_ == other.var_ &&
+				this->currentIndex_ == other.currentIndex_;
+		}
+
+		bool operator!=(const this_type& other) const {
+			return !(*this == other);
+		}
+
+	private:
+		explicit VariableConstIterator(const Variable* var)
+			: VariableConstIterator(var, 0)
+		{
+		}
+		explicit VariableConstIterator(const Variable* var, std::ptrdiff_t index, bool onlySetIndex = false)
+			: var_{var} {
+			if (onlySetIndex) {
+				currentIndex_ = index;
+			} else {
+				moveTo(index);
+			}
+		}
+
+		void swap(this_type& other) {
+			std::swap(var_, other.var_);
+		}
+
+		friend class ConstVariableView<T>;
+
+		void moveTo(std::ptrdiff_t index)
+		{
+			if (isIndexValid(index)) {
+				var_->read(&value_, static_cast<std::size_t>(index), 1);
+				currentIndex_ = index;
+			}
+		}
+
+		bool isIndexValid(std::ptrdiff_t index) const
+		{
+			return (index >= 0) && (static_cast<std::size_t>(index) < var_->recordsCount());
+		}
+
+		const Variable* var_;
+		std::ptrdiff_t currentIndex_;
+		T value_;
+	};
+
+	template <class T>
+	class ConstVariableView {
+	public:
+		typedef VariableConstIterator<T> const_iterator;
+		ConstVariableView(const Variable* var)
+			: var_{var} {
+		}
+
+		VariableConstIterator<T> begin() const {
+			return VariableConstIterator<T>(var_, 0);
+		}
+
+		VariableConstIterator<T> end() const {
+			return VariableConstIterator<T>(var_, static_cast<std::ptrdiff_t>(var_->recordsCount()), true);
+		}
+
+	private:
+		const Variable* var_;
 	};
 }
 }

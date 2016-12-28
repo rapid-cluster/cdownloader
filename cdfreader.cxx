@@ -304,9 +304,9 @@ std::size_t cdownload::CDF::Variable::read(void* dest, std::size_t startIndex, s
 	const std::size_t recordsToRead = maxRecordIndex - startIndex + 1;
 	const std::size_t dataStride = this->recordSize();
 #ifdef TRACING_READING
-	BOOST_LOG_TRIVIAL(trace) << "Reading " << name() << "[" << startIndex << ':' << startIndex+recordsToRead << ']';
+	BOOST_LOG_TRIVIAL(trace) << "Reading " << name() << "[" << startIndex << ':' << startIndex + recordsToRead << ']';
 #endif
-	assert(startIndex <= startIndex+recordsToRead);
+	assert(startIndex <= startIndex + recordsToRead);
 	for (std::size_t i = 0; i < recordsToRead; ++i) {
 		checkCDFStatus(CDFgetzVarRecordData(file_->cdfId(), static_cast<long>(index_), static_cast<long>(startIndex + i),
 		                                    static_cast<char*>(dest) + i * dataStride));
@@ -535,3 +535,51 @@ const void* cdownload::CDF::Reader::bufferForVariable(std::size_t variableIndex)
 	return buffers_.at(variableIndex).get();
 }
 
+std::size_t cdownload::CDF::Reader::findTimestamp(double timeStamp, std::size_t startIndex)
+{
+	struct Finder {
+		Finder(const Variable* v, double timeStamp)
+			: var_{v}
+			, timeStamp_{timeStamp}
+		{
+		}
+
+		std::size_t operator()(std::size_t startIndex)
+		{
+			ConstVariableView<double> view (var_);
+			auto begin = view.begin();
+			auto end = view.end();
+			auto iter = find(begin + static_cast<ptrdiff_t>(startIndex), end);
+			if (iter == end) {
+				iter = find(begin, end);
+				if (iter == end) {
+					throw std::runtime_error("No record for specified timestamp found");
+				}
+			}
+			return static_cast<std::size_t>(std::distance(begin, iter));
+		}
+
+	private:
+		typedef ConstVariableView<double>::const_iterator Iter;
+		Iter find(Iter begin, Iter end)
+		{
+			auto iter = std::upper_bound(begin, end, timeStamp_);
+			if (iter == end) {
+				--iter;
+				if (*iter < timeStamp_) {
+					return iter;
+				} else {
+					return end;
+				}
+			} else {
+				return --iter;
+			}
+		}
+
+		const Variable* var_;
+		double timeStamp_;
+	};
+
+	Finder finder(variables_[timeStampVariableIndex_], timeStamp);
+	return finder(startIndex);
+}
