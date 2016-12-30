@@ -46,7 +46,7 @@ bool cdownload::Filters::PlasmaSheetModeFilter::test(const std::vector<const voi
 {
 	// CIS_mode=13
 	const int* cis_mode = cis_mode_.data<int>(line);
-	if (*cis_mode != 13) {
+	if (*cis_mode != 13 && *cis_mode != 8) {
 		return false;
 	}
 
