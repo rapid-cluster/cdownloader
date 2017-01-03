@@ -11,6 +11,5 @@
 #define SYSTEM_IS_BIG_ENDIAN @SYSTEN_BIG_ENDIAN@
 
 #cmakedefine USE_BOOST_REGEX
-#cmakedefine USE_HIA_DENSITY
 
 #endif // CDOWNLOADER_CONFIG_H

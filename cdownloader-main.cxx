@@ -3,6 +3,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <string>
 
 #include "driver.hxx"
 #include "parameters.hxx"
@@ -132,6 +133,21 @@ int main(int ac, char** av)
 
 	desc.add(qualityOptions);
 
+	po::options_description densityOptions("Density filter");
+	densityOptions.add_options()
+		("density-source", po::value<std::string>(), "Density source. Either 'CODIF' or 'HIA'")
+		("min-density-value", po::value<double>(), "Minimal density value")
+	;
+
+	desc.add(densityOptions);
+
+	po::options_description optionalFilters("Optional filters");
+	optionalFilters.add_options()
+		("nighttime-only", po::value<bool>()->implicit_value(true), "Use only night time data")
+	;
+
+	desc.add(optionalFilters);
+
 	po::options_description outputOptions("Outputs");
 
 	outputOptions.add_options()
@@ -183,6 +199,24 @@ int main(int ac, char** av)
 	for (std::size_t i = 0; i < qualityFilterProducts.size(); ++i) {
 		parameters.addQualityFilter(qualityFilterProducts[i], qualityFilterMinQualities[i]);
 	}
+
+	if (vm.count("density-source") != vm.count("min-density-value")) {
+		std::cerr << "Density source and its minimal value must be specified together" << std::endl;
+		return 2;
+	}
+
+	if (vm.count("density-source")) {
+		std::string densitySource = vm["density-source"].as<std::string>();
+		if ((densitySource != "CODIF") && (densitySource != "HIA")) {
+			std::cerr << "Only 'CODIF' and 'HIA' are valid velues for 'density-source' parameter" << std::endl;
+			return 2;
+		}
+		parameters.addDensityFilter(
+			densitySource == "CODIF" ? cdownload::DensitySource::CODIF : cdownload::DensitySource::HIA,
+			vm["min-density-value"].as<double>());
+	}
+
+	parameters.onlyNightSide(vm.count("nighttime-only"));
 
 	try {
 		assureDirectoryExistsAndWritable(parameters.outputDir(), "Output");

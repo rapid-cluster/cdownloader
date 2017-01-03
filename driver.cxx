@@ -33,6 +33,8 @@
 #include "unpacker.hxx"
 
 #include "filters/baddata.hxx"
+#include "filters/density.hxx"
+#include "filters/nightside.hxx"
 #include "filters/plasmasheet.hxx"
 #include "filters/quality.hxx"
 
@@ -341,13 +343,24 @@ std::unique_ptr<cdownload::Writer> cdownload::Driver::createWriterForOutput(cons
 void cdownload::Driver::createFilters(std::vector<std::shared_ptr<RawDataFilter> >& rawDataFilters,
                                       std::vector<std::shared_ptr<AveragedDataFilter> >& averagedDataFilters)
 {
-	// so far, filters list is static
+	if (params_.onlyNightSide()) {
+		rawDataFilters.emplace_back(new Filters::NightSide());
+	}
+
 	rawDataFilters.emplace_back(new Filters::BadDataFilter());
 	rawDataFilters.emplace_back(new Filters::PlasmaSheetModeFilter());
 
 	for (const auto& qfp: params_.qualityFilters()) {
 		rawDataFilters.emplace_back(new Filters::QualityFilter(qfp.product, qfp.minQuality));
 	}
+
+
+	for (const auto& dfp: params_.densityyFilters()) {
+		const ProductName product = dfp.source == DensitySource::CODIF ?
+			ProductName("density__C4_CP_CIS-CODIF_HS_H1_MOMENTS") : ProductName("density__C1_CP_CIS-HIA_ONBOARD_MOMENTS");
+		averagedDataFilters.emplace_back(new Filters::H1DensityFilter(product, dfp.minDensity));
+	}
+
 	averagedDataFilters.emplace_back(new Filters::PlasmaSheet());
 }
 

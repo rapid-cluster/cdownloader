@@ -264,6 +264,16 @@ void cdownload::Parameters::addQualityFilter(const cdownload::ProductName& produ
 	qualityFilters_.push_back({product, minQuality});
 }
 
+void cdownload::Parameters::addDensityFilter(cdownload::DensitySource source, double minDensity)
+{
+	densityFilters_.push_back({source, minDensity});
+}
+
+void cdownload::Parameters::onlyNightSide(bool v)
+{
+	onlyNightSide_ = v;
+}
+
 namespace {
 	void printOutput(std::ostream& os, const cdownload::Output& o,
 		             const std::string& fieldDelim, const std::string& ident)

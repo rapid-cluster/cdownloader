@@ -20,38 +20,20 @@
  *
  */
 
-#ifndef CDOWNLOAD_FILTER_PLASMASHEET_HXX
-#define CDOWNLOAD_FILTER_PLASMASHEET_HXX
+#include "density.hxx"
 
-#include "../filter.hxx"
-
-namespace cdownload {
-namespace Filters {
-
-	class PlasmaSheetModeFilter: public RawDataFilter {
-		using base = RawDataFilter;
-	public:
-		PlasmaSheetModeFilter();
-		bool test(const std::vector<const void *> & line, const DatasetName& ds) const override;
-	private:
-		const Field& cis_mode_;
-// 		const Field& cis_mode_key_;
-	};
-
-	class PlasmaSheet : public AveragedDataFilter {
-		using base = AveragedDataFilter;
-	public:
-		PlasmaSheet();
-		bool test(const std::vector<AveragedVariable>& line) const override;
-	private:
-		const Field& H1density_;
-		const Field& H1T_;
-		const Field& O1density_;
-		const Field& O1T_;
-		const Field& BMag_;
-		const Field& sc_pos_xyz_gse_;
-	};
-}
+cdownload::Filters::H1DensityFilter::H1DensityFilter(const cdownload::ProductName& densityProduct, double minDensity)
+	: base("H1Density", 1)
+	, minDensity_{minDensity}
+	, H1density_(addField(densityProduct.name()))
+{
 }
 
-#endif // CDOWNLOAD_FILTER_PLASMASHEET_HXX
+bool cdownload::Filters::H1DensityFilter::test(const std::vector<AveragedVariable>& line) const
+{
+	if (H1density_.data(line)[0].mean() < minDensity_) {
+		return false;
+	}
+	return true;
+}
+

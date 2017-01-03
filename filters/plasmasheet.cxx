@@ -1,3 +1,25 @@
+/*
+ * cdownload lib: downloads, unpacks, and reads data from the Cluster CSA arhive
+ * Copyright (C) 2016  Eugene Shalygin <eugene.shalygin@gmail.com>
+ *
+ * The development was partially supported by the Volkswagen Foundation
+ * (VolkswagenStiftung).
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+
 /* letter from Lena dated 2016.09.23
  * here is the list of criteria for selection of the plasma sheet:
  *
@@ -61,9 +83,6 @@ cdownload::Filters::PlasmaSheet::PlasmaSheet()
 	, O1T_(addField("T__C4_CP_CIS-CODIF_HS_O1_MOMENTS"))
 	, BMag_(addField("B_mag__C4_CP_FGM_SPIN"))
 	, sc_pos_xyz_gse_(addField("sc_pos_xyz_gse__C4_CP_FGM_SPIN"))
-#ifdef USE_HIA_DENSITY
-	, hiaH1density_(addField("density__C1_CP_CIS-HIA_ONBOARD_MOMENTS"))
-#endif
 {
 }
 
@@ -99,19 +118,6 @@ bool cdownload::Filters::PlasmaSheet::test(const std::vector<AveragedVariable>& 
 	if (std::sqrt(sqr(pos[0].mean()) + sqr(pos[1].mean()) + sqr(pos[2].mean())) < 4 * RE) {
 		return false;
 	}
-
-#if 0
-	// proton density is greater than 2 cm-3
-	const double MIN_H1_DENSITY_IN_PLASMASHEET = 2.;
-#ifdef USE_HIA_DENSITY
-	const Field& h1densityFiled = hiaH1density_;
-#else
-	const Field& h1densityFiled = H1density_;
-#endif
-	if (h1densityFiled.data(line)[0].mean() < MIN_H1_DENSITY_IN_PLASMASHEET) {
-		return false;
-	}
-#endif
 
 	// 0.2 <plasma beta< 10
 	// beta is defined as ratio between plasma pressure and magnetic pressure

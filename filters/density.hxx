@@ -19,39 +19,23 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  */
-
-#ifndef CDOWNLOAD_FILTER_PLASMASHEET_HXX
-#define CDOWNLOAD_FILTER_PLASMASHEET_HXX
+#ifndef CDOWNLOAAD_FILTER_DENSITY_HXX
+#define CDOWNLOAAD_FILTER_DENSITY_HXX
 
 #include "../filter.hxx"
 
 namespace cdownload {
 namespace Filters {
-
-	class PlasmaSheetModeFilter: public RawDataFilter {
-		using base = RawDataFilter;
-	public:
-		PlasmaSheetModeFilter();
-		bool test(const std::vector<const void *> & line, const DatasetName& ds) const override;
-	private:
-		const Field& cis_mode_;
-// 		const Field& cis_mode_key_;
-	};
-
-	class PlasmaSheet : public AveragedDataFilter {
+	class H1DensityFilter: public AveragedDataFilter {
 		using base = AveragedDataFilter;
 	public:
-		PlasmaSheet();
+		H1DensityFilter(const ProductName& densityProduct, double minDensity);
 		bool test(const std::vector<AveragedVariable>& line) const override;
 	private:
+		double minDensity_;
 		const Field& H1density_;
-		const Field& H1T_;
-		const Field& O1density_;
-		const Field& O1T_;
-		const Field& BMag_;
-		const Field& sc_pos_xyz_gse_;
 	};
 }
 }
 
-#endif // CDOWNLOAD_FILTER_PLASMASHEET_HXX
+#endif // CDOWNLOAAD_FILTER_DENSITY_HXX

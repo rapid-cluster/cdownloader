@@ -78,6 +78,16 @@ namespace cdownload {
 		ProductName product;
 		int minQuality;
 	};
+
+	enum class DensitySource {
+		CODIF,
+		HIA
+	};
+
+	struct DensityFilterParameters {
+		DensitySource source;
+		double minDensity;
+	};
 	/**
 	 * @brief Encapsulates all settings related to outputs
 	 *
@@ -149,11 +159,23 @@ namespace cdownload {
 			return downloadMissingData_;
 		}
 
+		// optional filters
 		const std::vector<QualityFilterParameters>& qualityFilters() const {
 			return qualityFilters_;
 		}
-
 		void addQualityFilter(const ProductName& product, int minQuality);
+
+		const std::vector<DensityFilterParameters>& densityyFilters() const {
+			return densityFilters_;
+		}
+		void addDensityFilter(DensitySource source, double minDensity);
+
+		bool onlyNightSide() const {
+			return onlyNightSide_;
+		}
+
+		void onlyNightSide(bool v);
+
 	private:
 		datetime startDate_;
 		datetime endDate_;
@@ -166,6 +188,8 @@ namespace cdownload {
 		path cacheDir_;
 		bool downloadMissingData_;
 		std::vector<QualityFilterParameters> qualityFilters_;
+		std::vector<DensityFilterParameters> densityFilters_;
+		bool onlyNightSide_;
 	};
 
 	std::ostream& operator<<(std::ostream& os, const Parameters& p);

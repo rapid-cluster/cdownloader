@@ -20,38 +20,20 @@
  *
  */
 
-#ifndef CDOWNLOAD_FILTER_PLASMASHEET_HXX
-#define CDOWNLOAD_FILTER_PLASMASHEET_HXX
+#include "./nightside.hxx"
 
-#include "../filter.hxx"
-
-namespace cdownload {
-namespace Filters {
-
-	class PlasmaSheetModeFilter: public RawDataFilter {
-		using base = RawDataFilter;
-	public:
-		PlasmaSheetModeFilter();
-		bool test(const std::vector<const void *> & line, const DatasetName& ds) const override;
-	private:
-		const Field& cis_mode_;
-// 		const Field& cis_mode_key_;
-	};
-
-	class PlasmaSheet : public AveragedDataFilter {
-		using base = AveragedDataFilter;
-	public:
-		PlasmaSheet();
-		bool test(const std::vector<AveragedVariable>& line) const override;
-	private:
-		const Field& H1density_;
-		const Field& H1T_;
-		const Field& O1density_;
-		const Field& O1T_;
-		const Field& BMag_;
-		const Field& sc_pos_xyz_gse_;
-	};
-}
+cdownload::Filters::NightSide::NightSide()
+	: base("NightSide", 1)
+	, sc_pos_xyz_gse_(addField("sc_pos_xyz_gse__C4_CP_FGM_SPIN"))
+{
 }
 
-#endif // CDOWNLOAD_FILTER_PLASMASHEET_HXX
+bool cdownload::Filters::NightSide::test(const std::vector<const void *>& line, const DatasetName& /*ds*/) const
+{
+	const double* pos = sc_pos_xyz_gse_.data<double>(line);
+	if (pos[0] > 0) {
+		return false;
+	}
+
+	return true;
+}
