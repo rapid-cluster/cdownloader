@@ -176,6 +176,12 @@ namespace cdownload {
 
 		void onlyNightSide(bool v);
 
+
+		const path& timeRangesFileName() const {
+			return timeRangesFileName_;
+		}
+
+		void timeRangesFileName(const path& v);
 	private:
 		datetime startDate_;
 		datetime endDate_;
@@ -190,6 +196,7 @@ namespace cdownload {
 		std::vector<QualityFilterParameters> qualityFilters_;
 		std::vector<DensityFilterParameters> densityFilters_;
 		bool onlyNightSide_;
+		path timeRangesFileName_;
 	};
 
 	std::ostream& operator<<(std::ostream& os, const Parameters& p);

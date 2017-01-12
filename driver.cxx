@@ -37,6 +37,7 @@
 #include "filters/nightside.hxx"
 #include "filters/plasmasheet.hxx"
 #include "filters/quality.hxx"
+#include "filters/timefilter.hxx"
 
 #include "writers/ASCIIWriter.hxx"
 #include "writers/BinaryWriter.hxx"
@@ -46,6 +47,7 @@
 
 #include <fstream>
 #include <algorithm>
+#include <memory>
 #include <set>
 
 #include "config.h"
@@ -292,8 +294,13 @@ void cdownload::Driver::doTask()
 		}
 	}
 
+	std::unique_ptr<Filters::TimeFilter> timeFilter;
+	if (!params_.timeRangesFileName().empty()) {
+		timeFilter.reset(new Filters::TimeFilter(params_.timeRangesFileName()));
+	}
+
 	DataReader reader {actualStartDateTime, actualEndtDateTime, params_.timeInterval(),
-		rawFilters, datasources,  productsToRead, averagingCells, fields};
+		rawFilters, datasources,  productsToRead, averagingCells, fields, timeFilter.get()};
 // 			BOOST_LOG_TRIVIAL(info) << "Processing chunk [" << currentChunk.startTime << ','
 // 			                        << currentChunk.endTime << ']' << std::endl;
 

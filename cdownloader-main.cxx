@@ -122,6 +122,7 @@ int main(int ac, char** av)
 	    ("start", po::value<cdownload::datetime>()->default_value(cdownload::makeDateTime(2000, 8, 10)), "Start time")
 	    ("end", po::value<cdownload::datetime>()->default_value(cdownload::datetime::utcNow()), "End time")
 	    ("cell-size", po::value<cdownload::timeduration>()->required(), "Size of the averaging cell")
+	    ("valid-time-ranges", po::value<path>(), "File with time cells")
 	;
 	desc.add(timeOptions);
 
@@ -217,6 +218,10 @@ int main(int ac, char** av)
 	}
 
 	parameters.onlyNightSide(vm.count("nighttime-only"));
+
+	if (vm.count("valid-time-ranges")) {
+		parameters.timeRangesFileName(vm["valid-time-ranges"].as<path>());
+	}
 
 	try {
 		assureDirectoryExistsAndWritable(parameters.outputDir(), "Output");

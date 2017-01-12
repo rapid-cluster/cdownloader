@@ -32,6 +32,9 @@ namespace cdownload {
 
 	class DataSource;
 	class Field;
+	namespace Filters {
+		class TimeFilter;
+	}
 
 	/**
 	 * @brief Synchronously reads all required datasets (synchronization by timestamps)
@@ -44,7 +47,7 @@ namespace cdownload {
 		           std::map<DatasetName, std::shared_ptr<DataSource>>& datasources,
 		           const DatasetProductsMap& fieldsToRead,
 		           std::vector<AveragedVariable>& cells,
-		           const std::vector<Field>& fields);
+		           const std::vector<Field>& fields, const Filters::TimeFilter* timeFilter);
 		bool readNextCell(); //! returns @true if cell was read successfully
 		bool eof() const;
 		bool fail() const;
@@ -98,6 +101,7 @@ namespace cdownload {
 		bool fail_;
 		bool eof_;
 // 		datetime lastReadTimeStamp_;
+		const Filters::TimeFilter* timeFilter_;
 	};
 }
 

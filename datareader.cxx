@@ -24,6 +24,7 @@
 
 #include "datasource.hxx"
 #include "cdfreader.hxx"
+#include "filters/timefilter.hxx"
 
 #include <algorithm>
 #include <cassert>
@@ -42,7 +43,8 @@ cdownload::DataReader::DataReader(const datetime& startTime, const datetime& end
                                   std::map<DatasetName, std::shared_ptr<DataSource>>& datasources,
                                   const DatasetProductsMap& fieldsToRead,
                                   std::vector<AveragedVariable>& cells,
-                                  const std::vector<Field>& fields)
+                                  const std::vector<Field>& fields,
+                                  const Filters::TimeFilter* timeFilter)
 	: startTime_{startTime}
 	, endTime_{endTime}
 	, cellLength_{cellLength}
@@ -53,6 +55,7 @@ cdownload::DataReader::DataReader(const datetime& startTime, const datetime& end
 	, fields_{fields}
 	, fail_{false}
 	, eof_{false}
+	, timeFilter_{timeFilter}
 {
 	std::vector<ProductName> orderedProducts = expandProductsMap(fieldsToRead);
 	if (cells.size() != orderedProducts.size()) {
@@ -212,56 +215,12 @@ bool cdownload::DataReader::readNextCell()
 	return anyCellWasReadSuccesfully;
 }
 
-namespace {
-	class Cell {
-	public:
-		Cell(double mid, double halfWidth)
-			: midEpoch_(mid)
-			, halfWidth_(halfWidth) {
-		}
-
-		static Cell fromRange(double begin, double end) {
-			assert(end >= begin);
-			return Cell((begin+end)/2, (end - begin)/2);
-		}
-
-		double begin() const {
-			return midEpoch_ - halfWidth_;
-		}
-
-		double end() const {
-			return midEpoch_ + halfWidth_;
-		}
-
-		double mid() const {
-			return midEpoch_;
-		}
-
-		double halfWidth() const {
-			return halfWidth_;
-		}
-
-		double width() const {
-			return halfWidth_ * 2;
-		}
-
-		bool contains(double epoch) const {
-			return (epoch >= midEpoch_ - halfWidth_) &&
-				(epoch <= midEpoch_ + halfWidth_);
-		}
-
-	private:
-		double midEpoch_;
-		double halfWidth_;
-	};
-}
-
 // this function reads next cell from the given reader (CDF file) and dumps values into the
 // averaging cells
 cdownload::DataReader::CellReadStatus
 cdownload::DataReader::readNextCell(const datetime& cellStart, cdownload::DataReader::DataSetReadingContext& ds)
 {
-	const Cell outputCell = Cell::fromRange(cellStart.milliseconds(), (cellStart + cellLength_).milliseconds());
+	const EpochRange outputCell = EpochRange::fromRange(cellStart.milliseconds(), (cellStart + cellLength_).milliseconds());
 	double epoch = ds.lastReadTimeStamp;
 #ifndef NDEBUG
 	std::string outputCellString = boost::lexical_cast<std::string>(cellStart) + " + "
@@ -297,6 +256,10 @@ cdownload::DataReader::readNextCell(const datetime& cellStart, cdownload::DataRe
 			}
 		}
 		ds.lastReadTimeStamp = epoch;
+
+		if (timeFilter_ && !timeFilter_->test(epoch)) {
+			continue;
+		}
 
 		readOk = ds.reader->readRecord(ds.readRecordsCount - 1, true); // we've read timestamp already
 		if (!readOk) {

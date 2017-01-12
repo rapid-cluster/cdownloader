@@ -274,6 +274,11 @@ void cdownload::Parameters::onlyNightSide(bool v)
 	onlyNightSide_ = v;
 }
 
+void cdownload::Parameters::timeRangesFileName(const path& v)
+{
+	timeRangesFileName_ = v;
+}
+
 namespace {
 	void printOutput(std::ostream& os, const cdownload::Output& o,
 		             const std::string& fieldDelim, const std::string& ident)

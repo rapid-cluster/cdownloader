@@ -60,6 +60,7 @@ field.hxx
 field.cxx
 filter.hxx
 filter.cxx
+epochrange.hxx
 metadata.cxx
 metadata.hxx
 unpacker.hxx
@@ -80,6 +81,8 @@ filters/nightside.hxx
 filters/nightside.cxx
 filters/quality.hxx
 filters/quality.cxx
+filters/timefilter.hxx
+filters/timefilter.cxx
 writers/ASCIIWriter.hxx
 writers/ASCIIWriter.cxx
 writers/BinaryWriter.hxx
