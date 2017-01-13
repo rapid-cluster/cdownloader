@@ -37,7 +37,7 @@ namespace cdownload {
 	 */
 namespace CDF {
 
-	enum class DataType {
+	enum class DataType: long {
 		INT1        = 1L,
 		INT2        = 2L,
 		INT4        = 4L,
@@ -74,11 +74,13 @@ namespace CDF {
 
 		std::size_t read(void* dest, std::size_t startIndex, std::size_t numRecords) const;
 
-		std::size_t recordsCount() const
-		{
+		std::size_t recordsCount() const {
 			return recordsCount_;
 		}
 
+		double fillValue() const {
+			return fillValue_;
+		}
 	private:
 		Variable(File* file, std::size_t index, bool isRVar);
 		static std::size_t datatypeSize(DataType dt);
@@ -90,6 +92,7 @@ namespace CDF {
 		bool isRVar_;
 		std::size_t index_;
 		std::size_t recordsCount_;
+		double fillValue_;
 	};
 
 	class File {

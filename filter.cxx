@@ -23,6 +23,7 @@
 #include "filter.hxx"
 
 #include <algorithm>
+#include <limits>
 
 cdownload::Filter::Filter(const std::string& name, std::size_t maxFieldsCount)
 	: maxFieldsCount_{maxFieldsCount}
@@ -58,7 +59,8 @@ void cdownload::Filter::initialize(const std::vector<Field>& availableProducts) 
 }
 
 const cdownload::Field& cdownload::Filter::addField(const std::string& productName) {
-	activeFields_.push_back(Field(FieldDesc(ProductName(productName)), static_cast<std::size_t>(-1)));
+	activeFields_.push_back(Field(FieldDesc(ProductName(productName), std::numeric_limits<double>::quiet_NaN()),
+	                              static_cast<std::size_t>(-1)));
 	if (activeFields_.size() > maxFieldsCount_) {
 		throw std::logic_error("Relocation in fields array makes all field references invalid");
 	}

@@ -27,6 +27,7 @@
 #include <algorithm>
 #include <stdexcept>
 #include <iostream>
+#include <limits>
 #include <numeric>
 
 // #define TRACING_READING
@@ -161,6 +162,7 @@ cdownload::CDF::Variable::Variable(cdownload::CDF::File* file, std::size_t index
 	: file_{file}
 	, isRVar_{isRVar}
 	, index_{index}
+	, fillValue_{std::numeric_limits<double>::quiet_NaN()}
 {
 	if (isRVar) {
 		throw std::logic_error("R-variables are not supported yet");
@@ -173,6 +175,80 @@ cdownload::CDF::Variable::Variable(cdownload::CDF::File* file, std::size_t index
 	long allocated;
 	checkCDFStatus(CDFgetzVarMaxAllocRecNum(file_->cdfId(), index_, &allocated));
 	assert(allocated == recNum);
+
+	// read FILLVAL if any
+	char FILLVALUE_ATTR_NAME[] = "FILLVAL";
+	auto fillValueId = CDFgetAttrNum(file_->cdfId(), FILLVALUE_ATTR_NAME);
+	if (fillValueId >= CDF_OK) {
+		if (CDFconfirmzEntryExistence(file_->cdfId(), fillValueId, index_) !=  NO_SUCH_ENTRY) {
+			long dtv;
+			checkCDFStatus(CDFgetAttrzEntryDataType(file_->cdfId(), fillValueId, static_cast<long>(index_), &dtv));
+			DataType dt = static_cast<DataType>(dtv);
+			switch (dt) {
+				case DataType::INT1: {
+					char v;
+					checkCDFStatus(CDFgetAttrzEntry(file_->cdfId(), fillValueId, static_cast<long>(index_), &v));
+					fillValue_ = v;
+					break;
+				}
+				case DataType::INT2: {
+					short v;
+					checkCDFStatus(CDFgetAttrzEntry(file_->cdfId(), fillValueId, static_cast<long>(index_), &v));
+					fillValue_ = v;
+					break;
+				}
+				case DataType::INT4: {
+					int v;
+					checkCDFStatus(CDFgetAttrzEntry(file_->cdfId(), fillValueId, static_cast<long>(index_), &v));
+					fillValue_ = v;
+					break;
+				}
+				case DataType::INT8: {
+					long v;
+					checkCDFStatus(CDFgetAttrzEntry(file_->cdfId(), fillValueId, static_cast<long>(index_), &v));
+					fillValue_ = v;
+					break;
+				}
+				case DataType::UINT1: {
+					unsigned char v;
+					checkCDFStatus(CDFgetAttrzEntry(file_->cdfId(), fillValueId, static_cast<long>(index_), &v));
+					fillValue_ = v;
+					break;
+				}
+				case DataType::UINT2: {
+					unsigned short v;
+					checkCDFStatus(CDFgetAttrzEntry(file_->cdfId(), fillValueId, static_cast<long>(index_), &v));
+					fillValue_ = v;
+					break;
+				}
+				case DataType::UINT4: {
+					unsigned int v;
+					checkCDFStatus(CDFgetAttrzEntry(file_->cdfId(), fillValueId, static_cast<long>(index_), &v));
+					fillValue_ = v;
+					break;
+				}
+				case DataType::REAL4:
+				case DataType::FLOAT:{
+					float v;
+					checkCDFStatus(CDFgetAttrzEntry(file_->cdfId(), fillValueId, static_cast<long>(index_), &v));
+					fillValue_ = v;
+					break;
+				}
+				case DataType::REAL8:
+				case DataType::DOUBLE:
+				case DataType::EPOCH:
+				{
+					double v;
+					checkCDFStatus(CDFgetAttrzEntry(file_->cdfId(), fillValueId, static_cast<long>(index_), &v));
+					fillValue_ = v;
+					break;
+				}
+				default:
+					break;
+			}
+		}
+	}
+
 }
 
 void cdownload::CDF::Variable::setFile(cdownload::CDF::File* file)
@@ -331,7 +407,8 @@ void cdownload::CDF::VariableMetaPrinter::print(std::ostream& os) const
 	    << identString << "Name: " << variable_.name() << std::endl
 	    << identString << "Is Z-Variable: " << variable_.isZVariable() << std::endl
 	    << identString << "Datatype: " << dataTypeToString(variable_.datatype())
-	    << put_list(variable_.dimension());
+	    << put_list(variable_.dimension()) << std::endl
+	    << identString << "Fill value: " << variable_.fillValue();
 }
 
 std::string cdownload::CDF::VariableMetaPrinter::dataTypeToString(cdownload::CDF::DataType dt)
@@ -478,8 +555,8 @@ namespace {
 cdownload::FieldDesc cdownload::CDF::Info::describeVariable(const cdownload::CDF::Variable& v)
 {
 	auto dataTypeAndSize = cdfDatatypeToFieldDatatype(v.datatype());
-	return {v.name(), dataTypeAndSize.first, static_cast<std::size_t>(dataTypeAndSize.second),
-			v.elementsCount()};
+	return {v.name(), v.fillValue(), dataTypeAndSize.first, static_cast<std::size_t>(dataTypeAndSize.second),
+	        v.elementsCount()};
 }
 
 cdownload::CDF::Reader::Reader(const cdownload::CDF::File& f, const std::vector<ProductName>& variables)

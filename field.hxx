@@ -46,9 +46,9 @@ namespace cdownload {
 			Char
 		};
 
-		FieldDesc(const ProductName& name, DataType dt = DataType::SignedInt,
+		FieldDesc(const ProductName& name, double fillValue, DataType dt = DataType::SignedInt,
 		          std::size_t dataSize = 0, std::size_t elementsCount = 0);
-		FieldDesc(const std::string& name, DataType dt = DataType::SignedInt,
+		FieldDesc(const std::string& name, double fillValue, DataType dt = DataType::SignedInt,
 		          std::size_t dataSize = 0, std::size_t elementsCount = 0);
 
 		const ProductName& name() const
@@ -71,11 +71,17 @@ namespace cdownload {
 			return elementCount_;
 		}
 
+		double fillValue() const
+		{
+			return fillValue_;
+		}
+
 	private:
 		ProductName name_;
 		DataType dt_;
 		std::size_t dataSize_;
 		std::size_t elementCount_;
+		double fillValue_;
 	};
 
 

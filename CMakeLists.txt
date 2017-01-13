@@ -60,6 +60,7 @@ field.hxx
 field.cxx
 filter.hxx
 filter.cxx
+floatcomparison.hxx
 epochrange.hxx
 metadata.cxx
 metadata.hxx
@@ -71,12 +72,14 @@ writer.hxx
 writer.cxx
 parameters.hxx
 parameters.cxx
-filters/plasmasheet.hxx
-filters/plasmasheet.cxx
 filters/baddata.hxx
 filters/baddata.cxx
+filters/blankdata.hxx
+filters/blankdata.cxx
 filters/density.hxx
 filters/density.cxx
+filters/plasmasheet.hxx
+filters/plasmasheet.cxx
 filters/nightside.hxx
 filters/nightside.cxx
 filters/quality.hxx

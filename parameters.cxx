@@ -76,7 +76,8 @@ cdownload::Parameters::Parameters(const path& outputDir, const path& workDir, co
 	, outputDir_{outputDir}
 	, workDir_{workDir}
 	, cacheDir_{cacheDir}
-	, downloadMissingData_{true} {
+	, downloadMissingData_{true}
+	, allowBlanks_{false} {
 }
 
 void cdownload::Parameters::setExpansionDictFile(const path& fileName) {
@@ -277,6 +278,11 @@ void cdownload::Parameters::onlyNightSide(bool v)
 void cdownload::Parameters::timeRangesFileName(const path& v)
 {
 	timeRangesFileName_ = v;
+}
+
+void cdownload::Parameters::allowBlanks(bool v)
+{
+	allowBlanks_ = v;
 }
 
 namespace {

@@ -26,16 +26,19 @@ static_assert(sizeof(float) * CHAR_BIT == 32, "float type is not 32-bit");
 static_assert(sizeof(double) * CHAR_BIT == 64, "double type is not 32-bit");
 static_assert(sizeof(long) * CHAR_BIT == 64, "long type is not 64-bit");
 
-cdownload::FieldDesc::FieldDesc(const std::string& name, DataType dt, std::size_t dataSize, std::size_t elementsCount)
-	: FieldDesc(ProductName(name), dt, dataSize, elementsCount)
+cdownload::FieldDesc::FieldDesc(const std::string& name, double fillValue, DataType dt,
+                                std::size_t dataSize, std::size_t elementsCount)
+	: FieldDesc(ProductName(name), fillValue, dt, dataSize, elementsCount)
 {
 }
 
-cdownload::FieldDesc::FieldDesc(const cdownload::ProductName& name, DataType dt, std::size_t dataSize, std::size_t elementsCount)
+cdownload::FieldDesc::FieldDesc(const cdownload::ProductName& name, double fillValue, DataType dt,
+                                std::size_t dataSize, std::size_t elementsCount)
 	: name_(name)
 	, dt_{dt}
 	, dataSize_{dataSize}
-	, elementCount_{elementsCount} {
+	, elementCount_{elementsCount}
+	, fillValue_{fillValue} {
 }
 
 cdownload::Field::Field(const cdownload::FieldDesc& f, std::size_t offset)

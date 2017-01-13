@@ -33,6 +33,7 @@
 #include "unpacker.hxx"
 
 #include "filters/baddata.hxx"
+#include "filters/blankdata.hxx"
 #include "filters/density.hxx"
 #include "filters/nightside.hxx"
 #include "filters/plasmasheet.hxx"
@@ -241,6 +242,9 @@ void cdownload::Driver::doTask()
 		writers.back()->initialize(fieldsForWriters[o.name()]);
 	}
 
+	if (!params_.allowBlanks()) {
+		addBlankDataFilters(fields, rawFilters);
+	}
 	initializeFilters(fields, rawFilters, averageDataFilters);
 
 	std::size_t cellNo = 0;
@@ -370,6 +374,21 @@ void cdownload::Driver::createFilters(std::vector<std::shared_ptr<RawDataFilter>
 
 	averagedDataFilters.emplace_back(new Filters::PlasmaSheet());
 }
+
+void cdownload::Driver::addBlankDataFilters(const std::vector<Field>& fields,
+                                            std::vector<std::shared_ptr<RawDataFilter> >& rawDataFilters)
+{
+	std::map<ProductName, double> productsForFiltering;
+	for (const auto& field: fields) {
+		if (!std::isnan(field.fillValue())) {
+			productsForFiltering[field.name()] = field.fillValue();
+		}
+	}
+	if (!productsForFiltering.empty()) {
+		rawDataFilters.emplace_back(new Filters::BlankDataFilter(productsForFiltering));
+	}
+}
+
 
 void cdownload::Driver::initializeFilters(const std::vector<Field>& fields,
                                           std::vector<std::shared_ptr<RawDataFilter> >& rawDataFilters,

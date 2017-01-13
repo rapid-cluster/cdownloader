@@ -145,6 +145,7 @@ int main(int ac, char** av)
 	po::options_description optionalFilters("Optional filters");
 	optionalFilters.add_options()
 		("nighttime-only", po::value<bool>()->implicit_value(true), "Use only night time data")
+		("allow-blanks", po::value<bool>()->implicit_value(true), "Do not remove blank values")
 	;
 
 	desc.add(optionalFilters);
@@ -218,6 +219,9 @@ int main(int ac, char** av)
 	}
 
 	parameters.onlyNightSide(vm.count("nighttime-only"));
+	if (vm.count("allow-blanks")) {
+		parameters.allowBlanks(vm["allow-blanks"].as<bool>());
+	}
 
 	if (vm.count("valid-time-ranges")) {
 		parameters.timeRangesFileName(vm["valid-time-ranges"].as<path>());

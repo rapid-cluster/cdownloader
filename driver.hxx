@@ -54,6 +54,7 @@ namespace CDF {
 		void createFilters(std::vector<std::shared_ptr<RawDataFilter> >& rawDataFilters,
 		                   std::vector<std::shared_ptr<AveragedDataFilter> >& averagedDataFilters);
 
+		void addBlankDataFilters(const std::vector<Field>& fields, std::vector<std::shared_ptr<RawDataFilter> >& rawDataFilters);
 
 		void initializeFilters(const std::vector<Field>& fields,
 		                       std::vector<std::shared_ptr<RawDataFilter> >& rawDataFilters,
