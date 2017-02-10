@@ -53,6 +53,37 @@ namespace cdownload {
 		virtual bool canAppend(std::size_t& lastWrittenCellNumber) = 0;
 		virtual void truncate() = 0;
 
+	protected:
+		Writer();
+		std::size_t numOfCellsToWrite() const
+		{
+			return fields_.size();
+		}
+
+		const std::vector<Field>& fields() const
+		{
+			return fields_;
+		}
+
+	private:
+		std::vector<Field> fields_;
+	};
+
+	class DirectDataWriter: public virtual Writer {
+	public:
+		/**
+		 * @brief Writes a data record into the output stream
+		 *
+		 * @param cellNumber cardinal number of the cell
+		 * @param dt middle time in cell
+		 * @param line record data
+		 */
+		virtual void write(std::size_t cellNumber, const datetime& dt,
+		                   const std::vector<const void*>& line) = 0;
+	};
+
+	class AveragedDataWriter: public virtual Writer {
+	public:
 		/**
 		 * @brief Writes a data record into the output stream
 		 *
@@ -62,16 +93,6 @@ namespace cdownload {
 		 */
 		virtual void write(std::size_t cellNumber, const datetime& dt,
 		                   const std::vector<AveragedVariable>& cells) = 0;
-	protected:
-		Writer();
-		std::size_t numOfCellsToWrite() const {
-			return fields_.size();
-		}
-		const std::vector<Field>& fields() const {
-			return fields_;
-		}
-	private:
-		std::vector<Field> fields_;
 	};
 }
 

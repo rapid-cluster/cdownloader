@@ -91,73 +91,6 @@ void cdownload::BinaryWriter::truncate()
 	output_.reset(std::fopen(outputFileName_.c_str(), "w+"));
 }
 
-void cdownload::BinaryWriter::write(std::size_t cellNumber, const datetime& dt,
-                                   const std::vector<AveragedVariable>& cells)
-{
-
-	std::fwrite(&cellNumber, sizeof(std::size_t), 1, output_.get());
-
-	const auto dtSeconds = dt.seconds();
-
-	std::fwrite(&dtSeconds, sizeof(dtSeconds), 1, output_.get());
-
-	struct CellValues {
-		double mean;
-		std::size_t count;
-		double stdDev;
-	};
-	for (const Field& f: fields()) {
-		const AveragedVariable& av = f.data(cells);
-		for (const AveragingRegister& ac: av) {
-			CellValues cv {ac.mean(), ac.count(),  ac.stdDev()};
-			std::fwrite(&cv, sizeof(cv), 1, output_.get());
-		}
-	}
-}
-
-
-namespace {
-
-	void printFieldHeader(std::ostream& os, const std::string& name, std::size_t elementsCount)
-	{
-		using cdownload::AveragingRegister;
-		if (elementsCount == 1) {
-			os << '\t' << name << ":mean <" << datatypenaming::NATIVE_REAL << "["
-				<< sizeof(AveragingRegister::mean_value_type) * CHAR_BIT << "]>"
-				<< '\t' << name << ":count <" << datatypenaming::NATIVE_UNSIGNED_INT<< "["
-				<< sizeof(AveragingRegister::counter_type) * CHAR_BIT << "]>"
-				<< '\t' << name << ":stddev <" << datatypenaming::NATIVE_REAL << "["
-				<< sizeof(AveragingRegister::stddev_value_type) * CHAR_BIT << "]>";
-		} else {
-			for (std::size_t elem = 0; elem < elementsCount; ++elem) {
-				os << '\t' << name << "___" << elem +1 << ":mean <" << datatypenaming::NATIVE_REAL << "["
-					<< sizeof(AveragingRegister::mean_value_type) * CHAR_BIT << "]>"
-					<< '\t' << name << "___" << elem +1 << ":count <" << datatypenaming::NATIVE_UNSIGNED_INT << "["
-					<< sizeof(AveragingRegister::counter_type) * CHAR_BIT << "]>"
-					<< '\t' << name << "___" << elem +1 << ":stddev <" << datatypenaming::NATIVE_REAL << "["
-					<< sizeof(AveragingRegister::stddev_value_type) * CHAR_BIT << "]>";
-			}
-		}
-	}
-}
-
-void cdownload::BinaryWriter::writeHeader()
-{
-	string headerFileName = outputFileName_.string() + ".hdr";
-
-	std::ofstream headerFile(headerFileName.c_str());
-	// writing a header line
-	headerFile << "CellNo <[" <<
-		datatypenaming::NATIVE_UNSIGNED_INT << sizeof(std::size_t) * CHAR_BIT << "]>\t" <<
-		"MidTime <[" <<
-		datatypenaming::NATIVE_REAL << sizeof(decltype(timeduration().seconds())) * CHAR_BIT << "]>";
-	for (const FieldDesc& f: fields()) {
-		printFieldHeader(headerFile, f.name().name(), f.elementCount());
-	}
-	headerFile << std::endl;
-}
-
-
 void cdownload::BinaryWriter::initialize(const std::vector<Field>& fields)
 {
 	stride_ = sizeof(std::size_t) + sizeof(decltype(timeduration().seconds()));
@@ -182,4 +115,127 @@ bool cdownload::BinaryWriter::canAppend(std::size_t& lastWrittenCellNumber)
 		return read == 1;
 	}
 	return false;
+}
+
+void cdownload::AveragedDataBinaryWriter::write(std::size_t cellNumber, const datetime& dt,
+                                   const std::vector<AveragedVariable>& cells)
+{
+
+	std::fwrite(&cellNumber, sizeof(std::size_t), 1, outputStream());
+
+	const auto dtSeconds = dt.seconds();
+
+	std::fwrite(&dtSeconds, sizeof(dtSeconds), 1, outputStream());
+
+	struct CellValues {
+		double mean;
+		std::size_t count;
+		double stdDev;
+	};
+	for (const Field& f: fields()) {
+		const AveragedVariable& av = f.data(cells);
+		for (const AveragingRegister& ac: av) {
+			CellValues cv {ac.mean(), ac.count(),  ac.stdDev()};
+			std::fwrite(&cv, sizeof(cv), 1, outputStream());
+		}
+	}
+}
+
+namespace {
+
+	void printAveragedFieldHeader(std::ostream& os, const std::string& name, std::size_t elementsCount)
+	{
+		using cdownload::AveragingRegister;
+		if (elementsCount == 1) {
+			os << '\t' << name << ":mean <" << datatypenaming::NATIVE_REAL << "["
+				<< sizeof(AveragingRegister::mean_value_type) * CHAR_BIT << "]>"
+				<< '\t' << name << ":count <" << datatypenaming::NATIVE_UNSIGNED_INT<< "["
+				<< sizeof(AveragingRegister::counter_type) * CHAR_BIT << "]>"
+				<< '\t' << name << ":stddev <" << datatypenaming::NATIVE_REAL << "["
+				<< sizeof(AveragingRegister::stddev_value_type) * CHAR_BIT << "]>";
+		} else {
+			for (std::size_t elem = 0; elem < elementsCount; ++elem) {
+				os << '\t' << name << "___" << elem +1 << ":mean <" << datatypenaming::NATIVE_REAL << "["
+					<< sizeof(AveragingRegister::mean_value_type) * CHAR_BIT << "]>"
+					<< '\t' << name << "___" << elem +1 << ":count <" << datatypenaming::NATIVE_UNSIGNED_INT << "["
+					<< sizeof(AveragingRegister::counter_type) * CHAR_BIT << "]>"
+					<< '\t' << name << "___" << elem +1 << ":stddev <" << datatypenaming::NATIVE_REAL << "["
+					<< sizeof(AveragingRegister::stddev_value_type) * CHAR_BIT << "]>";
+			}
+		}
+	}
+
+	void printRawFieldHeader(std::ostream& os, const std::string& name, std::size_t elementsCount)
+	{
+		using cdownload::AveragingRegister;
+		if (elementsCount == 1) {
+			os << '\t' << name << datatypenaming::NATIVE_REAL << "["
+				<< sizeof(AveragingRegister::mean_value_type) * CHAR_BIT << "]>";
+		} else {
+			for (std::size_t elem = 0; elem < elementsCount; ++elem) {
+				os << '\t' << name << elem +1 << datatypenaming::NATIVE_REAL << "["
+					<< sizeof(AveragingRegister::mean_value_type) * CHAR_BIT << "]>";
+			}
+		}
+	}
+}
+
+void cdownload::AveragedDataBinaryWriter::writeHeader()
+{
+	string headerFileName = outputFileName().string() + ".hdr";
+
+	std::ofstream headerFile(headerFileName.c_str());
+	// writing a header line
+	headerFile << "CellNo <[" <<
+		datatypenaming::NATIVE_UNSIGNED_INT << sizeof(std::size_t) * CHAR_BIT << "]>\t" <<
+		"MidTime <[" <<
+		datatypenaming::NATIVE_REAL << sizeof(decltype(timeduration().seconds())) * CHAR_BIT << "]>";
+	for (const FieldDesc& f: fields()) {
+		printAveragedFieldHeader(headerFile, f.name().name(), f.elementCount());
+	}
+	headerFile << std::endl;
+}
+
+
+void cdownload::DirectBinaryWriter::writeHeader()
+{
+	string headerFileName = outputFileName().string() + ".hdr";
+
+	std::ofstream headerFile(headerFileName.c_str());
+	// writing a header line
+	headerFile << "CellNo <[" <<
+		datatypenaming::NATIVE_UNSIGNED_INT << sizeof(std::size_t) * CHAR_BIT << "]>\t" <<
+		"MidTimeEpoch <[" <<
+		datatypenaming::NATIVE_REAL << sizeof(decltype(datetime().milliseconds())) * CHAR_BIT << "]>";
+	for (const FieldDesc& f: fields()) {
+		printRawFieldHeader(headerFile, f.name().name(), f.elementCount());
+	}
+	headerFile << std::endl;
+}
+
+void cdownload::AveragedDataBinaryWriter::initialize(const std::vector<Field>& fields)
+{
+	// we support only double values so far
+	for (const Field& f: fields) {
+		if (f.dataType() != FieldDesc::DataType::Real ||
+			f.dataSize() != sizeof(double)) {
+			throw std::runtime_error("Only double columns are supported");
+		}
+	}
+	BinaryWriter::initialize(fields);
+}
+
+
+void cdownload::DirectBinaryWriter::write(std::size_t cellNumber, const datetime& dt, const std::vector<const void *>& line)
+{
+	std::fwrite(&cellNumber, sizeof(std::size_t), 1, outputStream());
+
+	const auto dtSeconds = dt.seconds();
+
+	std::fwrite(&dtSeconds, sizeof(dtSeconds), 1, outputStream());
+
+	for (const Field& f: fields()) {
+		const double* data = f.data<double>(line);
+		std::fwrite(data, sizeof(double), f.elementCount(), outputStream());
+	}
 }

@@ -139,7 +139,7 @@ void cdownload::Driver::doTask()
 	for (const auto& ds: requiredDatasets) {
 		auto dataset = meta.dataset(ds);
 		BOOST_LOG_TRIVIAL(trace) << "Time range for dataset " << dataset.name() << ": [" <<
-			dataset.minTime() << ',' << dataset.maxTime() << ']';
+		    dataset.minTime() << ',' << dataset.maxTime() << ']';
 		if (dataset.minTime() > availableStartDateTime) {
 			availableStartDateTime = dataset.minTime();
 		}
@@ -161,7 +161,7 @@ void cdownload::Driver::doTask()
 //  datetime currentChunkStartTime = availableStartDateTime;
 
 	// have to get first chunks separately in order to detect dataset products
-	std::map<DatasetName, std::shared_ptr<DataSource>> datasources;
+	std::map<DatasetName, std::shared_ptr<DataSource> > datasources;
 	std::map<DatasetName, DatasetChunk> chunks;
 	for (const auto& ds: requiredDatasets) {
 		datasources[ds] = std::shared_ptr<DataSource>(new DataSource(ds, params_, meta));
@@ -217,12 +217,12 @@ void cdownload::Driver::doTask()
 
 	BOOST_LOG_TRIVIAL(trace) << "Collected fields: " << put_list(fields);
 
-	std::map<std::string,std::vector<Field>> fieldsForWriters;
+	std::map<std::string, std::vector<Field> > fieldsForWriters;
 	for (const Output& o: expandedOutputs) {
 		fieldsForWriters[o.name()] = std::vector<Field>();
-		for (const std::pair<DatasetName, std::vector<ProductName>>& dsp: o.products()) {
+		for (const std::pair<DatasetName, std::vector<ProductName> >& dsp: o.products()) {
 			for (const ProductName& pr: dsp.second) {
-				auto fi = std::find_if(fields.begin(), fields.end(), [&pr](const Field& f){
+				auto fi = std::find_if(fields.begin(), fields.end(), [&pr](const Field& f) {
 					return f.name() == pr.name();
 				});
 				if (fi == fields.end()) {
@@ -259,7 +259,7 @@ void cdownload::Driver::doTask()
 				lastCellNumbers.push_back(lcn);
 			} else {
 				BOOST_LOG_TRIVIAL(error) << "Can not append to output '" <<
-					params_.outputs()[outputIndex].name() << '\'';
+				    params_.outputs()[outputIndex].name() << '\'';
 				throw std::runtime_error("Can not append to output '" + params_.outputs()[outputIndex].name() + '\'');
 			}
 		}
@@ -267,7 +267,7 @@ void cdownload::Driver::doTask()
 		BOOST_LOG_TRIVIAL(trace) << "Found last cell indexes:";
 		for (std::size_t outputIndex = 0; outputIndex < writers.size(); ++outputIndex) {
 			BOOST_LOG_TRIVIAL(trace) << "\t" << params_.outputs()[outputIndex].name() <<
-				" : " << lastCellNumbers[outputIndex];
+			    " : " << lastCellNumbers[outputIndex];
 		}
 
 		// not check collected values
@@ -289,7 +289,7 @@ void cdownload::Driver::doTask()
 			dsp.second->setNextChunkStartTime(startTime);
 		}
 		// 3. ...and download it
-// 		currentChunk = chunkDownloader.nextChunk();
+//      currentChunk = chunkDownloader.nextChunk();
 	} else {
 		BOOST_LOG_TRIVIAL(debug) << "Truncating output files";
 		for (auto& writer: writers) {
@@ -303,30 +303,66 @@ void cdownload::Driver::doTask()
 		timeFilter.reset(new Filters::TimeFilter(params_.timeRangesFileName()));
 	}
 
-	DataReader reader {actualStartDateTime, actualEndtDateTime, params_.timeInterval(),
-		rawFilters, datasources,  productsToRead, averagingCells, fields, timeFilter.get()};
-// 			BOOST_LOG_TRIVIAL(info) << "Processing chunk [" << currentChunk.startTime << ','
-// 			                        << currentChunk.endTime << ']' << std::endl;
 
-	for (;!reader.eof() && !reader.fail();++cellNo) {
-		const datetime cellMidTime = reader.cellMidTime();
-		if (reader.readNextCell()) {
-			bool cellPassedFiltering = true;
-			for (const auto& filter: averageDataFilters) {
-				if (!filter->test(averagingCells)) {
-					cellPassedFiltering = false;
+	if (params_.disableAveraging()) {
+		DirectDataReader reader(actualStartDateTime, actualEndtDateTime,
+		                                  rawFilters, datasources, productsToRead, fields, timeFilter.get());
+		std::vector<DirectDataWriter*> dWriters;
+		for (const std::unique_ptr<Writer>& writer: writers) {
+			dWriters.push_back(dynamic_cast<DirectDataWriter*>(writer.get()));
+		}
+
+		for (; !reader.eof() && !reader.fail(); ++cellNo) {
+			const datetime cellMidTime = reader.cellMidTime();
+			if (reader.readNextCell()) {
+				bool cellPassedFiltering = true;
+				for (const auto& filter: averageDataFilters) {
+					if (!filter->test(averagingCells)) {
+						cellPassedFiltering = false;
 #ifdef DEBUG_LOG_EVERY_CELL
-					BOOST_LOG_TRIVIAL(trace) << "Rejecting Cell " << cellNo << " (" << cellMidTime << ")";
+						BOOST_LOG_TRIVIAL(trace) << "Rejecting Cell " << cellNo << " (" << cellMidTime << ")";
 #endif
-					break;
+						break;
+					}
+				}
+				if (cellPassedFiltering) {
+#ifdef DEBUG_LOG_EVERY_CELL
+					BOOST_LOG_TRIVIAL(trace) << "Writing Cell " << cellMidTime;
+#endif
+					for (DirectDataWriter* writer: dWriters) {
+						writer->write(cellNo, cellMidTime, reader.bufferPointers());
+					}
 				}
 			}
-			if (cellPassedFiltering) {
+		}
+	} else {
+		AveragingDataReader reader(actualStartDateTime, actualEndtDateTime, params_.timeInterval(),
+		                           rawFilters, datasources, productsToRead, averagingCells, fields, timeFilter.get());
+		std::vector<AveragedDataWriter*> aWriters;
+		for (const std::unique_ptr<Writer>& writer: writers) {
+			aWriters.push_back(dynamic_cast<AveragedDataWriter*>(writer.get()));
+		}
+
+		for (; !reader.eof() && !reader.fail(); ++cellNo) {
+			const datetime cellMidTime = reader.cellMidTime();
+			if (reader.readNextCell()) {
+				bool cellPassedFiltering = true;
+				for (const auto& filter: averageDataFilters) {
+					if (!filter->test(averagingCells)) {
+						cellPassedFiltering = false;
 #ifdef DEBUG_LOG_EVERY_CELL
-				BOOST_LOG_TRIVIAL(trace) << "Writing Cell " << cellMidTime;
+						BOOST_LOG_TRIVIAL(trace) << "Rejecting Cell " << cellNo << " (" << cellMidTime << ")";
 #endif
-				for (const std::unique_ptr<Writer>& writer: writers) {
-					writer->write(cellNo, cellMidTime, averagingCells);
+						break;
+					}
+				}
+				if (cellPassedFiltering) {
+#ifdef DEBUG_LOG_EVERY_CELL
+					BOOST_LOG_TRIVIAL(trace) << "Writing Cell " << cellMidTime;
+#endif
+					for (AveragedDataWriter* writer: aWriters) {
+						writer->write(cellNo, cellMidTime, averagingCells);
+					}
 				}
 			}
 		}
@@ -335,14 +371,23 @@ void cdownload::Driver::doTask()
 
 std::unique_ptr<cdownload::Writer> cdownload::Driver::createWriterForOutput(const cdownload::Output& output) const
 {
+	std::unique_ptr<cdownload::Writer> res;
 	switch (output.format()) {
 	case Output::Format::ASCII: {
-		auto res = std::unique_ptr<cdownload::Writer>{new ASCIIWriter()};
+		if (params_.disableAveraging()) {
+			res.reset(new DirectASCIIWriter());
+		} else {
+			res.reset(new AveragedDataASCIIWriter());
+		}
 		res->open(params_.outputDir() / (output.name() + ".txt"));
 		return res;
 	}
 	case Output::Format::Binary: {
-		auto res = std::unique_ptr<cdownload::Writer>{new BinaryWriter()};
+		if (params_.disableAveraging()) {
+			res.reset(new DirectBinaryWriter());
+		} else {
+			res.reset(new AveragedDataBinaryWriter());
+		}
 		res->open(params_.outputDir() / (output.name() + ".bin"));
 		return res;
 	}
@@ -366,13 +411,15 @@ void cdownload::Driver::createFilters(std::vector<std::shared_ptr<RawDataFilter>
 	}
 
 
-	for (const auto& dfp: params_.densityyFilters()) {
-		const ProductName product = dfp.source == DensitySource::CODIF ?
-			ProductName("density__C4_CP_CIS-CODIF_HS_H1_MOMENTS") : ProductName("density__C1_CP_CIS-HIA_ONBOARD_MOMENTS");
-		averagedDataFilters.emplace_back(new Filters::H1DensityFilter(product, dfp.minDensity));
-	}
+	if (!params_.disableAveraging()) {
+		for (const auto& dfp: params_.densityyFilters()) {
+			const ProductName product = dfp.source == DensitySource::CODIF ?
+			                            ProductName("density__C4_CP_CIS-CODIF_HS_H1_MOMENTS") : ProductName("density__C1_CP_CIS-HIA_ONBOARD_MOMENTS");
+			averagedDataFilters.emplace_back(new Filters::H1DensityFilter(product, dfp.minDensity));
+		}
 
-	averagedDataFilters.emplace_back(new Filters::PlasmaSheet());
+		averagedDataFilters.emplace_back(new Filters::PlasmaSheet());
+	}
 }
 
 void cdownload::Driver::addBlankDataFilters(const std::vector<Field>& fields,
@@ -388,7 +435,6 @@ void cdownload::Driver::addBlankDataFilters(const std::vector<Field>& fields,
 		rawDataFilters.emplace_back(new Filters::BlankDataFilter(productsForFiltering));
 	}
 }
-
 
 void cdownload::Driver::initializeFilters(const std::vector<Field>& fields,
                                           std::vector<std::shared_ptr<RawDataFilter> >& rawDataFilters,

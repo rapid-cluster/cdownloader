@@ -38,29 +38,24 @@
 
 constexpr const std::size_t INVALID_INDEX = static_cast<std::size_t>(-1);
 
-cdownload::DataReader::DataReader(const datetime& startTime, const datetime& endTime, timeduration cellLength,
+cdownload::DataReader::~DataReader() = default;
+
+cdownload::DataReader::DataReader(const datetime& startTime, const datetime& endTime,
                                   const std::vector<std::shared_ptr<RawDataFilter> >& filters,
                                   std::map<DatasetName, std::shared_ptr<DataSource>>& datasources,
                                   const DatasetProductsMap& fieldsToRead,
-                                  std::vector<AveragedVariable>& cells,
                                   const std::vector<Field>& fields,
                                   const Filters::TimeFilter* timeFilter)
 	: startTime_{startTime}
 	, endTime_{endTime}
-	, cellLength_{cellLength}
 	, datasources_{datasources}
 	, readers_{}
-	, cells_(cells)
 	, filters_{filters}
 	, fields_{fields}
-	, fail_{false}
-	, eof_{false}
+	, state_{ReaderState::OK}
 	, timeFilter_{timeFilter}
 {
 	std::vector<ProductName> orderedProducts = expandProductsMap(fieldsToRead);
-	if (cells.size() != orderedProducts.size()) {
-		throw std::logic_error("Averaging cells array may not differ in size from CDF variables list");
-	}
 	if (fields_.size() != orderedProducts.size()) {
 		throw std::logic_error("Fields array may not differ in size from CDF variables list");
 	}
@@ -147,191 +142,12 @@ cdownload::DataReader::DataReader(const datetime& startTime, const datetime& end
 
 bool cdownload::DataReader::fail() const
 {
-	return fail_;
+	return static_cast<int>(state_) & static_cast<int>(ReaderState::Fail);
 }
 
 bool cdownload::DataReader::eof() const
 {
-	return eof_;
-}
-
-// const void * cdownload::DataReader::buffer(const cdownload::ProductName& var) const
-// {
-//  std::size_t index = std::distance(order)
-// }
-
-bool cdownload::DataReader::readNextCell()
-{
-	for (AveragedVariable& cell: cells_) {
-		cell.scheduleReset();
-	}
-
-	if (startTime_ >= endTime_) {
-		eof_ = true;
-		return false;
-	}
-
-#ifdef DEBUG_LOG_EVERY_CELL
-	BOOST_LOG_TRIVIAL(trace) << "Reading cell " << startTime_ << " +- " << cellLength_;
-#endif
-
-	bool anyCellWasReadSuccesfully = false;
-	bool eofInOneOfTheDatasets = false;
-	for (auto& dsp: readers_) {
-		CellReadStatus cellReadStatus = readNextCell(startTime_, dsp.second);
-		if (cellReadStatus == CellReadStatus::NoRecordSurviedFiltering) {
-			anyCellWasReadSuccesfully = false;
-#ifdef DEBUG_LOG_EVERY_CELL
-			BOOST_LOG_TRIVIAL(trace) << "\t NRSF in dataset " << dsp.second.datasetName;
-#endif
-			break;
-		}
-		if (cellReadStatus == CellReadStatus::EoF) {
-			eofInOneOfTheDatasets = true;
-			break;
-		}
-		anyCellWasReadSuccesfully |= (cellReadStatus == CellReadStatus::OK);
-	}
-#ifdef DEBUG_LOG_EVERY_CELL
-	BOOST_LOG_TRIVIAL(trace) << "Cell " << startTime_ << " +- " << cellLength_ << " read " << anyCellWasReadSuccesfully;
-#endif
-	startTime_ += cellLength_;
-	if (eofInOneOfTheDatasets) {
-		eof_ = true;
-		return false;
-	}
-	if (!anyCellWasReadSuccesfully) {
-		// check for EOF
-		bool eof = false;
-		for (auto& dsp: readers_) {
-			if (dsp.second.reader->eof()) {
-				eof = true;
-				break;
-			}
-		}
-		eof_ = eof;
-	}
-
-	return anyCellWasReadSuccesfully;
-}
-
-// this function reads next cell from the given reader (CDF file) and dumps values into the
-// averaging cells
-cdownload::DataReader::CellReadStatus
-cdownload::DataReader::readNextCell(const datetime& cellStart, cdownload::DataReader::DataSetReadingContext& ds)
-{
-	const EpochRange outputCell = EpochRange::fromRange(cellStart.milliseconds(), (cellStart + cellLength_).milliseconds());
-	double epoch = ds.lastReadTimeStamp;
-#ifndef NDEBUG
-	std::string outputCellString = boost::lexical_cast<std::string>(cellStart) + " + "
-		+ boost::lexical_cast<std::string>(cellLength_);
-	std::string epochCellString;
-#endif
-	bool anyRecordSurviedFiltering = false;
-	do {
-		bool readOk = false;
-		do {
-			ds.lastReadTimeStamp = epoch;
-			readOk = ds.reader->readTimeStampRecord(ds.readRecordsCount++);
-			if (!readOk && ds.reader->eof()) {
-				if (advanceDataSource(ds)) {
-					continue;
-				} else {
-					return CellReadStatus::EoF;
-				}
-			}
-			epoch = *static_cast<const double*>(ds.reader->bufferForVariable(ds.timestampVariableIndex)); // EPCH16?
-#ifndef NDEBUG
-		epochCellString = datetime(epoch).CSAString();
-#endif
-		} while ((epoch < outputCell.begin()) && readOk); // we skip records with
-		// epoch == 0, which indicates absence of data
-
-		if (epoch > outputCell.end()) {
-			--ds.readRecordsCount;
-			if (ds.lastReadTimeStamp <= 0) {
-				return CellReadStatus::NoRecordSurviedFiltering;
-			} else {
-				break;
-			}
-		}
-		ds.lastReadTimeStamp = epoch;
-
-		if (timeFilter_ && !timeFilter_->test(epoch)) {
-			continue;
-		}
-
-		readOk = ds.reader->readRecord(ds.readRecordsCount - 1, true); // we've read timestamp already
-		if (!readOk) {
-			return CellReadStatus::ReadError;
-		}
-
-		assert(outputCell.contains(epoch));
-
-		bool filtersPassed = true;
-		// the record was read successfully and belongs to the current output cell -> test by filters
-		for (const auto& f: ds.filters) {
-			if (!f->test(bufferPointers_, ds.datasetName)) {
-				filtersPassed = false;
-#ifdef DEBUG_LOG_EVERY_CELL
-				BOOST_LOG_TRIVIAL(trace) << "\t Rejected by " << f->name() << " filter";
-#endif
-				break;
-			}
-		}
-
-		if (!filtersPassed) {
-			continue;
-		} else {
-			anyRecordSurviedFiltering = true;
-		}
-
-		// warning: it is important to set lastReadTimeStamp after filtering!
-		// otherwise we might consider filtered out record as valid one on the next cycle step
-
-		copyValuesToAveragingCells(ds);
-	} while (outputCell.end() > epoch); // which means that currentDatasetCell completely falls inside of outputCell
-	return anyRecordSurviedFiltering ? CellReadStatus::OK : CellReadStatus::NoRecordSurviedFiltering;
-
-// 	return true;
-}
-
-cdownload::datetime cdownload::DataReader::cellMidTime() const
-{
-	return startTime_ + cellLength_ / 2;
-}
-
-void cdownload::DataReader::copyValuesToAveragingCells(const cdownload::DataReader::DataSetReadingContext& ds)
-{
-	// test finished successfully -> append to the averaging cell
-		// TODO: optimize inner loops
-	for (std::size_t i = 0; i < ds.indiciesInCells.size(); ++i) {
-		const std::size_t cellIndex = ds.indiciesInCells[i];
-		if (cellIndex == INVALID_INDEX) {
-			continue;
-		}
-		Field& f = fields_[cellIndex];
-		AveragedVariable& av = cells_[cellIndex];
-		switch (f.dataType()) {
-			case FieldDesc::DataType::Real:
-				for (std::size_t i = 0; i < f.elementCount(); ++i) {
-					av[i].add(f.getReal(bufferPointers_, i));
-				}
-				break;
-			case FieldDesc::DataType::SignedInt:
-				for (std::size_t i = 0; i < f.elementCount(); ++i) {
-					av[i].add(f.getLong(bufferPointers_, i));
-				}
-				break;
-			case FieldDesc::DataType::UnsignedInt:
-				for (std::size_t i = 0; i < f.elementCount(); ++i) {
-					av[i].add(f.getULong(bufferPointers_, i));
-				}
-				break;
-			default:
-				throw std::runtime_error("Unexpected datatype");
-		}
-	}
+	return static_cast<int>(state_) & static_cast<int>(ReaderState::EoF);
 }
 
 cdownload::DataReader::DataSetReadingContext::DataSetReadingContext()
@@ -377,4 +193,268 @@ bool cdownload::DataReader::advanceDataSource(cdownload::DataReader::DataSetRead
 	context.reader.reset(new CDF::Reader(cdfFile, context.variablesToReadFromDataset));
 	context.readRecordsCount = 0;
 	return true;
+}
+
+void cdownload::DataReader::setStateFlag(cdownload::DataReader::ReaderState flag, bool on)
+{
+	if (on) {
+		state_ = static_cast<ReaderState>(static_cast<int>(state_) | static_cast<int>(flag));
+	} else {
+		state_ = static_cast<ReaderState>(static_cast<int>(state_) & ~static_cast<int>(flag));
+	}
+}
+
+
+
+cdownload::AveragingDataReader::AveragingDataReader(const datetime& startTime, const datetime& endTime, timeduration cellLength, const std::vector<std::shared_ptr<RawDataFilter> >& filters, std::map<DatasetName, std::shared_ptr<DataSource> >& datasources, const DatasetProductsMap& fieldsToRead, std::vector<AveragedVariable>& cells, const std::vector<Field>& fields, const Filters::TimeFilter* timeFilter)
+	: base(startTime, endTime, filters, datasources, fieldsToRead, fields, timeFilter)
+	, currentStartTime_{startTime}
+	, cellLength_{cellLength}
+	, cells_{cells}
+{
+	if (cells.size() != fields.size()) {
+		throw std::logic_error("Averaging cells array may not differ in size from CDF variables list");
+	}
+}
+
+// this function reads next cell from the given reader (CDF file) and dumps values into the
+// averaging cells
+cdownload::DataReader::CellReadStatus
+cdownload::AveragingDataReader::readNextCell(const datetime& cellStart, cdownload::DataReader::DataSetReadingContext& ds)
+{
+	const EpochRange outputCell = EpochRange::fromRange(cellStart.milliseconds(), (cellStart + cellLength_).milliseconds());
+	double epoch = ds.lastReadTimeStamp;
+#ifndef NDEBUG
+	std::string outputCellString = boost::lexical_cast<std::string>(cellStart) + " + "
+		+ boost::lexical_cast<std::string>(cellLength_);
+	std::string epochCellString;
+#endif
+	bool anyRecordSurviedFiltering = false;
+	do {
+		bool readOk = false;
+		do {
+			ds.lastReadTimeStamp = epoch;
+			readOk = ds.reader->readTimeStampRecord(ds.readRecordsCount++);
+			if (!readOk && ds.reader->eof()) {
+				if (advanceDataSource(ds)) {
+					continue;
+				} else {
+					return CellReadStatus::EoF;
+				}
+			}
+			epoch = *static_cast<const double*>(ds.reader->bufferForVariable(ds.timestampVariableIndex)); // EPCH16?
+#ifndef NDEBUG
+		epochCellString = datetime(epoch).CSAString();
+#endif
+		} while ((epoch < outputCell.begin()) && readOk); // we skip records with
+		// epoch == 0, which indicates absence of data
+
+		if (epoch > outputCell.end()) {
+			--ds.readRecordsCount;
+			if (ds.lastReadTimeStamp <= 0) {
+				return CellReadStatus::NoRecordSurviedFiltering;
+			} else {
+				break;
+			}
+		}
+		ds.lastReadTimeStamp = epoch;
+
+		if (timeFilter() && !timeFilter()->test(epoch)) {
+			continue;
+		}
+
+		readOk = ds.reader->readRecord(ds.readRecordsCount - 1, true); // we've read timestamp already
+		if (!readOk) {
+			return CellReadStatus::ReadError;
+		}
+
+		assert(outputCell.contains(epoch));
+
+		bool filtersPassed = true;
+		// the record was read successfully and belongs to the current output cell -> test by filters
+		for (const auto& f: ds.filters) {
+			if (!f->test(bufferPointers(), ds.datasetName)) {
+				filtersPassed = false;
+#ifdef DEBUG_LOG_EVERY_CELL
+				BOOST_LOG_TRIVIAL(trace) << "\t Rejected by " << f->name() << " filter";
+#endif
+				break;
+			}
+		}
+
+		if (!filtersPassed) {
+			continue;
+		} else {
+			anyRecordSurviedFiltering = true;
+		}
+
+		// warning: it is important to set lastReadTimeStamp after filtering!
+		// otherwise we might consider filtered out record as valid one on the next cycle step
+
+		copyValuesToAveragingCells(ds);
+	} while (outputCell.end() > epoch); // which means that currentDatasetCell completely falls inside of outputCell
+	return anyRecordSurviedFiltering ? CellReadStatus::OK : CellReadStatus::NoRecordSurviedFiltering;
+
+// 	return true;
+}
+
+cdownload::datetime cdownload::AveragingDataReader::cellMidTime() const
+{
+	return currentStartTime_ + cellLength_ / 2;
+}
+
+void cdownload::AveragingDataReader::copyValuesToAveragingCells(const cdownload::DataReader::DataSetReadingContext& ds)
+{
+	// test finished successfully -> append to the averaging cell
+		// TODO: optimize inner loops
+	for (std::size_t i = 0; i < ds.indiciesInCells.size(); ++i) {
+		const std::size_t cellIndex = ds.indiciesInCells[i];
+		if (cellIndex == INVALID_INDEX) {
+			continue;
+		}
+		Field& f = fields()[cellIndex];
+		AveragedVariable& av = cells_[cellIndex];
+		switch (f.dataType()) {
+			case FieldDesc::DataType::Real:
+				for (std::size_t i = 0; i < f.elementCount(); ++i) {
+					av[i].add(f.getReal(bufferPointers(), i));
+				}
+				break;
+			case FieldDesc::DataType::SignedInt:
+				for (std::size_t i = 0; i < f.elementCount(); ++i) {
+					av[i].add(f.getLong(bufferPointers(), i));
+				}
+				break;
+			case FieldDesc::DataType::UnsignedInt:
+				for (std::size_t i = 0; i < f.elementCount(); ++i) {
+					av[i].add(f.getULong(bufferPointers(), i));
+				}
+				break;
+			default:
+				throw std::runtime_error("Unexpected datatype");
+		}
+	}
+}
+
+bool cdownload::AveragingDataReader::readNextCell()
+{
+	for (AveragedVariable& cell: cells_) {
+		cell.scheduleReset();
+	}
+
+	if (currentStartTime_ >= endTime()) {
+		setStateFlag(ReaderState::EoF);
+		return false;
+	}
+
+#ifdef DEBUG_LOG_EVERY_CELL
+	BOOST_LOG_TRIVIAL(trace) << "Reading cell " << currentStartTime_ << " +- " << cellLength_;
+#endif
+
+	bool anyCellWasReadSuccesfully = false;
+	bool eofInOneOfTheDatasets = false;
+	for (auto& dsp: readers()) {
+		CellReadStatus cellReadStatus = readNextCell(currentStartTime_, dsp.second);
+		if (cellReadStatus == CellReadStatus::NoRecordSurviedFiltering) {
+			anyCellWasReadSuccesfully = false;
+#ifdef DEBUG_LOG_EVERY_CELL
+			BOOST_LOG_TRIVIAL(trace) << "\t NRSF in dataset " << dsp.second.datasetName;
+#endif
+			break;
+		}
+		if (cellReadStatus == CellReadStatus::EoF) {
+			eofInOneOfTheDatasets = true;
+			break;
+		}
+		anyCellWasReadSuccesfully |= (cellReadStatus == CellReadStatus::OK);
+	}
+#ifdef DEBUG_LOG_EVERY_CELL
+	BOOST_LOG_TRIVIAL(trace) << "Cell " << currentStartTime_ << " +- " << cellLength_ << " read " << anyCellWasReadSuccesfully;
+#endif
+	currentStartTime_ += cellLength_;
+	if (eofInOneOfTheDatasets) {
+		setStateFlag(ReaderState::EoF);
+		return false;
+	}
+	if (!anyCellWasReadSuccesfully) {
+		// check for EOF
+		bool eof = false;
+		for (auto& dsp: readers()) {
+			if (dsp.second.reader->eof()) {
+				eof = true;
+				break;
+			}
+		}
+		setStateFlag(ReaderState::EoF, eof);
+	}
+
+	return anyCellWasReadSuccesfully;
+}
+
+
+// DirectDataReader
+
+cdownload::DirectDataReader::DirectDataReader(const datetime& startTime, const datetime& endTime, const std::vector<std::shared_ptr<RawDataFilter> >& filters, std::map<DatasetName, std::shared_ptr<DataSource> >& datasources, const DatasetProductsMap& fieldsToRead, const std::vector<Field>& fields, const Filters::TimeFilter* timeFilter)
+	: base{startTime, endTime, filters, datasources, fieldsToRead, fields, timeFilter}
+	, dsContext_{&readers().begin()->second}
+{
+	if (readers().size() != 1) {
+		throw std::runtime_error("Direct reading is supported from single dataset only");
+	}
+
+	skipToTime(startTime, *dsContext_);
+}
+
+
+bool cdownload::DirectDataReader::readNextCell()
+{
+#ifdef DEBUG_LOG_EVERY_CELL
+	BOOST_LOG_TRIVIAL(trace) << "Reading record #" << dsContext_->readRecordsCount;
+#endif
+
+	while (true) {
+		double epoch = dsContext_->reader->readTimeStampRecord(dsContext_->readRecordsCount - 1);
+		if (epoch > endTime().milliseconds()) {
+			setStateFlag(ReaderState::EoF, true);
+			return false;
+		}
+		bool readOk = dsContext_->reader->readRecord(dsContext_->readRecordsCount - 1, true); // we've read timestamp already
+		if (!readOk) {
+			setStateFlag(ReaderState::Fail);
+			return false;
+		}
+
+		bool filtersPassed = true;
+		// the record was read successfully and belongs to the current output cell -> test by filters
+		for (const auto& f: dsContext_->filters) {
+			if (!f->test(bufferPointers(), dsContext_->datasetName)) {
+				filtersPassed = false;
+#ifdef DEBUG_LOG_EVERY_CELL
+				BOOST_LOG_TRIVIAL(trace) << "\t Rejected by " << f->name() << " filter";
+#endif
+				break;
+			}
+		}
+
+		if (!filtersPassed) {
+			continue;
+		}
+
+		return true;
+	}
+}
+
+bool cdownload::DirectDataReader::skipToTime(const datetime& time, DataSetReadingContext& ds)
+{
+	while(true) {
+		try {
+			ds.readRecordsCount = ds.reader->findTimestamp(time.milliseconds(), ds.readRecordsCount);
+		} catch (std::runtime_error&) {
+			if (advanceDataSource(ds)) {
+				continue;
+			} else {
+				throw;
+			}
+		}
+	}
 }

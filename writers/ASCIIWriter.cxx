@@ -44,54 +44,6 @@ void cdownload::ASCIIWriter::truncate()
 	output_.reset(new std::fstream(fileName_.c_str(), std::ios_base::trunc | std::ios_base::in | std::ios_base::out));
 }
 
-
-void cdownload::ASCIIWriter::write(std::size_t cellNumber, const datetime& dt,
-                                   const std::vector<AveragedVariable>& cells)
-{
-	(*output_) << cellNumber << '\t' << dt;
-	for (const Field& f: fields()) {
-		const AveragedVariable& av = f.data(cells);
-		for (const AveragingRegister& ac: av) {
-			(*output_) << '\t' << ac.mean() << '\t' << ac.count() << '\t' << ac.stdDev();
-		}
-	}
-	(*output_) << std::endl;
-}
-
-
-namespace {
-
-	void printFieldHeader(std::ostream& os, const std::string& name, std::size_t elementsCount)
-	{
-		if (elementsCount == 1) {
-			os << '\t' << name << ":mean"
-				<< '\t' << name << ":count"
-				<< '\t' << name << ":stddev";
-		} else {
-			for (std::size_t elem = 0; elem < elementsCount; ++elem) {
-				os << '\t' << name << "___" << elem +1 << ":mean"
-					<< '\t' << name << "___" << elem +1 << ":count"
-					<< '\t' << name << "___" << elem +1 << ":stddev";
-			}
-		}
-	}
-}
-
-void cdownload::ASCIIWriter::writeHeader()
-{
-	// writing a header line
-	(*output_) << "CellNo\tMidTime";
-	for (const FieldDesc& f: fields()) {
-		printFieldHeader((*output_), f.name().name(), f.elementCount());
-	}
-	(*output_) << std::endl << std::flush;
-}
-
-void cdownload::ASCIIWriter::initialize(const std::vector<Field>& fields)
-{
-	base::initialize(fields);
-}
-
 bool cdownload::ASCIIWriter::canAppend(std::size_t& lastWrittenCellNumber)
 {
 	lastWrittenCellNumber = 0;
@@ -119,3 +71,140 @@ bool cdownload::ASCIIWriter::canAppend(std::size_t& lastWrittenCellNumber)
 	output_->seekp(0, std::ios::end);
 	return lastWrittenCellNumber != 0; // because there might be only header in the file
 }
+
+std::ostream& cdownload::ASCIIWriter::outputStream()
+{
+	return *output_.get();
+}
+
+void cdownload::AveragedDataASCIIWriter::write(std::size_t cellNumber, const datetime& dt,
+                                   const std::vector<AveragedVariable>& cells)
+{
+	outputStream() << cellNumber << '\t' << dt;
+	for (const Field& f: fields()) {
+		const AveragedVariable& av = f.data(cells);
+		for (const AveragingRegister& ac: av) {
+			outputStream() << '\t' << ac.mean() << '\t' << ac.count() << '\t' << ac.stdDev();
+		}
+	}
+	outputStream() << std::endl;
+}
+
+
+namespace {
+	void printAveragedFieldHeader(std::ostream& os, const std::string& name, std::size_t elementsCount)
+	{
+		if (elementsCount == 1) {
+			os << '\t' << name << ":mean"
+				<< '\t' << name << ":count"
+				<< '\t' << name << ":stddev";
+		} else {
+			for (std::size_t elem = 0; elem < elementsCount; ++elem) {
+				os << '\t' << name << "___" << elem +1 << ":mean"
+					<< '\t' << name << "___" << elem +1 << ":count"
+					<< '\t' << name << "___" << elem +1 << ":stddev";
+			}
+		}
+	}
+
+	void printDirectFieldHeader(std::ostream& os, const std::string& name, std::size_t elementsCount)
+	{
+		if (elementsCount == 1) {
+			os << '\t' << name;
+		} else {
+			for (std::size_t elem = 0; elem < elementsCount; ++elem) {
+				os << '\t' << name << "___" << elem +1;
+			}
+		}
+	}
+}
+
+void cdownload::AveragedDataASCIIWriter::writeHeader()
+{
+	// writing a header line
+	outputStream() << "CellNo\tMidTime";
+	for (const FieldDesc& f: fields()) {
+		printAveragedFieldHeader(outputStream(), f.name().name(), f.elementCount());
+	}
+	outputStream() << std::endl << std::flush;
+}
+
+void cdownload::ASCIIWriter::initialize(const std::vector<Field>& fields)
+{
+	base::initialize(fields);
+}
+
+void cdownload::DirectASCIIWriter::writeHeader()
+{
+	// writing a header line
+	outputStream() << "CellNo\tMidTimeEpoch";
+	for (const FieldDesc& f: fields()) {
+		printDirectFieldHeader(outputStream(), f.name().name(), f.elementCount());
+	}
+	outputStream() << std::endl << std::flush;
+}
+
+namespace {
+	template <class Data>
+	void printArray(std::ostream& os, const void* ptr, std::size_t elementsCount) {
+		const Data* array = static_cast<const Data*>(ptr);
+		for (std::size_t i = 0; i<elementsCount; ++i) {
+			os << '\t' << array[i];
+		}
+	}
+}
+
+void cdownload::DirectASCIIWriter::write(std::size_t cellNumber, const datetime& dt, const std::vector<const void *>& line)
+{
+	outputStream() << cellNumber << '\t' << dt.milliseconds();
+	for (const Field& f: fields()) {
+		switch (f.dataType()) {
+			case FieldDesc::DataType::Real:
+				switch (f.dataSize()) {
+					case 4:
+						printArray<float>(outputStream(), line[f.offset()], f.elementCount());
+						break;
+					case 8:
+						printArray<double>(outputStream(), line[f.offset()], f.elementCount());
+						break;
+				}
+				break;
+			case FieldDesc::DataType::SignedInt:
+				switch (f.dataSize()) {
+					case 1:
+						printArray<char>(outputStream(), line[f.offset()], f.elementCount());
+						break;
+					case 2:
+						printArray<short>(outputStream(), line[f.offset()], f.elementCount());
+						break;
+					case 4:
+						printArray<int>(outputStream(), line[f.offset()], f.elementCount());
+						break;
+					case 8:
+						printArray<long>(outputStream(), line[f.offset()], f.elementCount());
+						break;
+				}
+				break;
+			case FieldDesc::DataType::UnsignedInt:
+				switch (f.dataSize()) {
+					case 1:
+						printArray<unsigned char>(outputStream(), line[f.offset()], f.elementCount());
+						break;
+					case 2:
+						printArray<unsigned short>(outputStream(), line[f.offset()], f.elementCount());
+						break;
+					case 4:
+						printArray<unsigned int>(outputStream(), line[f.offset()], f.elementCount());
+						break;
+					case 8:
+						printArray<unsigned long>(outputStream(), line[f.offset()], f.elementCount());
+						break;
+				}
+				break;
+			default:
+				throw std::runtime_error("This data type is not supported");
+		}
+	}
+	outputStream() << std::endl;
+}
+

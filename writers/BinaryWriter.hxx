@@ -28,23 +28,33 @@
 
 namespace cdownload {
 
+
 	/**
 	 * @brief Writes output files as binary tables + ASCII header in a separate file
 	 *
 	 */
-	class BinaryWriter: public Writer {
+	class BinaryWriter: public virtual Writer {
 		using base = Writer;
+
 	public:
 		BinaryWriter();
 		~BinaryWriter();
 
 		void initialize(const std::vector<Field>& fields) override;
-		void open(const path & fileName) override;
-		void write(std::size_t cellNumber, const datetime& dt,
-				   const std::vector<AveragedVariable> & cells) override;
+		void open(const path& fileName) override;
 		bool canAppend(std::size_t& lastWrittenCellNumber) override;
 		void truncate() override;
-		void writeHeader() override;
+
+	protected:
+		FILE* outputStream()
+		{
+			return output_.get();
+		}
+
+		const path& outputFileName() const {
+			return outputFileName_;
+		}
+
 	private:
 		struct FileClose {
 			void operator()(::FILE*) const;
@@ -52,6 +62,21 @@ namespace cdownload {
 		std::unique_ptr<::FILE, FileClose> output_;
 		path outputFileName_;
 		std::size_t stride_;
+	};
+
+	class DirectBinaryWriter: public DirectDataWriter, public BinaryWriter {
+	private:
+		void writeHeader() override;
+		void write(std::size_t cellNumber, const datetime & dt, const std::vector<const void *> & line) override;
+	};
+
+	class AveragedDataBinaryWriter: public AveragedDataWriter, public BinaryWriter {
+
+	private:
+		void initialize(const std::vector<Field>& fields) override;
+		void writeHeader() override;
+		void write(std::size_t cellNumber, const datetime& dt,
+		           const std::vector<AveragedVariable>& cells) override;
 	};
 }
 #endif

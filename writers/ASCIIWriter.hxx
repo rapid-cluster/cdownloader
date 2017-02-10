@@ -34,7 +34,7 @@ namespace cdownload {
 	 * @brief Writes output files as ASCII tables
 	 *
 	 */
-	class ASCIIWriter: public Writer {
+	class ASCIIWriter: public virtual Writer {
 		using base = Writer;
 	public:
 		ASCIIWriter();
@@ -42,15 +42,32 @@ namespace cdownload {
 
 		void initialize(const std::vector<Field>& fields) override;
 		void open(const path & fileName) override;
-		void write(std::size_t cellNumber, const datetime& dt,
-				   const std::vector<AveragedVariable> & cells) override;
 		bool canAppend(std::size_t& lastWrittenCellNumber) override;
 		void truncate() override;
-		void writeHeader() override;
+
+	protected:
+		std::ostream& outputStream();
+
 	private:
 		std::unique_ptr<std::fstream> output_;
 		path fileName_;
 	};
+
+	class DirectASCIIWriter: public DirectDataWriter, public ASCIIWriter {
+	private:
+		void writeHeader() override;
+		void write(std::size_t cellNumber, const datetime & dt, const std::vector<const void *> & line) override;
+	};
+
+	class AveragedDataASCIIWriter: public AveragedDataWriter, public ASCIIWriter {
+
+	private:
+		void writeHeader() override;
+		void write(std::size_t cellNumber, const datetime& dt,
+		           const std::vector<AveragedVariable>& cells) override;
+	};
+
+
 }
 
 #endif // CDOWNLOAD_ASCIIWRITER_HXX

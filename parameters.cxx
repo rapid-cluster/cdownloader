@@ -285,6 +285,12 @@ void cdownload::Parameters::allowBlanks(bool v)
 	allowBlanks_ = v;
 }
 
+void cdownload::Parameters::disableAveraging(bool v)
+{
+	disableAveraging_ = v;
+}
+
+
 namespace {
 	void printOutput(std::ostream& os, const cdownload::Output& o,
 		             const std::string& fieldDelim, const std::string& ident)

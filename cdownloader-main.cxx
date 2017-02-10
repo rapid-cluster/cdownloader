@@ -116,13 +116,14 @@ int main(int ac, char** av)
 	    ("download-missing", po::value<bool>()->default_value(true)->implicit_value(true),
 	         "Download missing from cache data");
 
-	po::options_description timeOptions("Time interval");
+	po::options_description timeOptions("Time options");
 
 	timeOptions.add_options()
 	    ("start", po::value<cdownload::datetime>()->default_value(cdownload::makeDateTime(2000, 8, 10)), "Start time")
 	    ("end", po::value<cdownload::datetime>()->default_value(cdownload::datetime::utcNow()), "End time")
 	    ("cell-size", po::value<cdownload::timeduration>()->required(), "Size of the averaging cell")
 	    ("valid-time-ranges", po::value<path>(), "File with time cells")
+	    ("no-averaging", po::value<bool>()->default_value(false)->implicit_value(true), "Do not average values")
 	;
 	desc.add(timeOptions);
 
@@ -225,6 +226,14 @@ int main(int ac, char** av)
 
 	if (vm.count("valid-time-ranges")) {
 		parameters.timeRangesFileName(vm["valid-time-ranges"].as<path>());
+	}
+
+	if (vm.count("no-averaging") && vm["no-averaging"].as<bool>()) {
+		if (vm.count("cell-size")) {
+			std::cerr << "Options 'cell-size' and 'no-averaging' are mutually exclusive" << std::endl;
+			return 2;
+		}
+		parameters.disableAveraging(true);
 	}
 
 	try {

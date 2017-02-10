@@ -42,20 +42,30 @@ namespace cdownload {
 	 */
 	class DataReader {
 	public:
-		DataReader(const datetime& startTime, const datetime& endTime, timeduration cellLength,
+		virtual ~DataReader();
+		DataReader(const datetime& startTime, const datetime& endTime,
 		           const std::vector<std::shared_ptr<RawDataFilter> >& filters,
 		           std::map<DatasetName, std::shared_ptr<DataSource>>& datasources,
 		           const DatasetProductsMap& fieldsToRead,
-		           std::vector<AveragedVariable>& cells,
 		           const std::vector<Field>& fields, const Filters::TimeFilter* timeFilter);
-		bool readNextCell(); //! returns @true if cell was read successfully
+		virtual bool readNextCell() = 0; //! returns @true if cell was read successfully
 		bool eof() const;
 		bool fail() const;
 //      const void* buffer(const ProductName& var) const;
 
-		datetime cellMidTime() const;
+	protected:
+		enum class CellReadStatus {
+			OK,
+			NoRecordSurviedFiltering,
+			EoF,
+			ReadError
+		};
 
-	private:
+		enum class ReaderState {
+			OK = 0,
+			EoF = 1,
+			Fail = 2
+		};
 
 		struct DataSetReadingContext {
 			DataSetReadingContext();
@@ -78,30 +88,86 @@ namespace cdownload {
 			std::vector<ProductName> variablesToReadFromDataset;
 		};
 
-		enum class CellReadStatus {
-			OK,
-			NoRecordSurviedFiltering,
-			EoF,
-			ReadError
-		};
-		CellReadStatus readNextCell(const datetime& cellStart, DataSetReadingContext& ds);
-		void copyValuesToAveragingCells(const DataSetReadingContext& ds);
+		const datetime& startTime() const {
+			return startTime_;
+		}
+
+		const datetime& endTime() const {
+			return endTime_;
+		}
+
 		bool advanceDataSource(DataSetReadingContext& context);
 
+		const Filters::TimeFilter* timeFilter() const {
+			return timeFilter_;
+		}
+
+		std::vector<const void*>& bufferPointers() {
+			return bufferPointers_;
+		}
+
+		std::vector<Field>& fields() {
+			return fields_;
+		}
+
+		std::map<DatasetName, DataSetReadingContext>& readers() {
+			return readers_;
+		}
+
+		void setStateFlag(ReaderState flag, bool on = true);
+
+	private:
 		datetime startTime_;
 		datetime endTime_;
-		timeduration cellLength_;
 		std::map<DatasetName, std::shared_ptr<DataSource>> datasources_;
 		std::map<DatasetName, DataSetReadingContext> readers_;
-		std::vector<AveragedVariable>& cells_;
 		std::vector<std::shared_ptr<RawDataFilter> > filters_;
 		std::vector<const void*> bufferPointers_; // this is for filters, i.e. without time_tags fields
 		std::vector<Field> fields_;
 
-		bool fail_;
-		bool eof_;
+		ReaderState state_;
 // 		datetime lastReadTimeStamp_;
 		const Filters::TimeFilter* timeFilter_;
+	};
+
+	class AveragingDataReader: public DataReader {
+		using base = DataReader;
+	public:
+		AveragingDataReader(const datetime& startTime, const datetime& endTime, timeduration cellLength,
+		           const std::vector<std::shared_ptr<RawDataFilter> >& filters,
+		           std::map<DatasetName, std::shared_ptr<DataSource>>& datasources,
+		           const DatasetProductsMap& fieldsToRead,
+		           std::vector<AveragedVariable>& cells,
+		           const std::vector<Field>& fields, const Filters::TimeFilter* timeFilter);
+		bool readNextCell() override;
+		datetime cellMidTime() const;
+	private:
+		CellReadStatus readNextCell(const datetime& cellStart, DataSetReadingContext& ds);
+		void copyValuesToAveragingCells(const DataSetReadingContext& ds);
+
+		datetime currentStartTime_;
+		timeduration cellLength_;
+		std::vector<AveragedVariable>& cells_;
+	};
+
+	class DirectDataReader: public DataReader {
+		using base = DataReader;
+	public:
+		DirectDataReader(const datetime& startTime, const datetime& endTime,
+		           const std::vector<std::shared_ptr<RawDataFilter> >& filters,
+		           std::map<DatasetName, std::shared_ptr<DataSource>>& datasources,
+		           const DatasetProductsMap& fieldsToRead,
+		           const std::vector<Field>& fields, const Filters::TimeFilter* timeFilter);
+		bool readNextCell() override;
+
+		datetime cellMidTime() const {
+			return datetime(dsContext_->lastReadTimeStamp);
+		}
+
+		using DataReader::bufferPointers;
+	private:
+		bool skipToTime(const datetime& time, DataSetReadingContext& ds);
+		DataSetReadingContext* dsContext_;
 	};
 }
 

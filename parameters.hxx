@@ -187,6 +187,11 @@ namespace cdownload {
 		}
 
 		void allowBlanks(bool v);
+
+		bool disableAveraging() const {
+			return disableAveraging_;
+		}
+		void disableAveraging(bool v);
 	private:
 		datetime startDate_;
 		datetime endDate_;
@@ -203,6 +208,7 @@ namespace cdownload {
 		bool onlyNightSide_;
 		path timeRangesFileName_;
 		bool allowBlanks_;
+		bool disableAveraging_;
 	};
 
 	std::ostream& operator<<(std::ostream& os, const Parameters& p);
