@@ -1,0 +1,76 @@
+CDownloader: Cluster Science Archive (CSA) downloading tool
+
+-----------------------------------------------------------------
+
+To compile this one needs:
+1. A C++ compiler with C++11 support
+2. CMake (www.cmake.org), version 3.6.0 or greater
+3. LibCURL (curl.haxx.se/libcurl/) (not tested with versions older than 7.52.1)
+4. CDF library (cdf.gsfc.nasa.gov/), version 3.6.2.1 or greater
+
+-----------------------------------------------------------------
+The shortest way to compile cdownloader:
+
+mkdir build-dir
+cd build-dir
+cmake ..
+make
+
+-----------------------------------------------------------------
+Configuring
+
+Only out-of-source builds are supported. Create build directory either outside of the source tree or
+as a subdir in the source tree. cd to that directory and run cmake <source directory>, possibly
+supplying one or more options (see below the options list). For this example we will create the build
+directory inside of the source directory:
+
+cd <source directory>
+mkdir build
+
+and cd into it:
+
+cd build
+
+Now we are ready to run configure phase. This is done via the following command:
+
+cmake <source directory> [-D<option1_name>=<option1_value> [-D<option2_name>=<option2_value>] ...]
+
+In out example the command without options is:
+
+cmake ..
+
+To get list of available options, run:
+
+cmake -LH ..
+
+which is somewhat equivalent to 'configure --help' with autotools. To extend this list with CMake
+predefined variables, run
+
+cmake -LAH ..
+
+If configure phase completes successfully, you can move to the next phase, compiling. Otherwise you
+need to correct configure errors first, that are most likely caused by an absent package.
+
+-----------------------------------------------------------------
+Compiling
+
+If you did not specify a generator for CMake (run 'cmake -G' to get the list of available generators),
+CMake uses its default generator to produce standard makefiles. Now you can run
+
+make
+
+or nmake on Windows in the build dir to compile the code.
+
+-----------------------------------------------------------------
+Installation
+
+With the default generator (makefiles) to install the software run
+
+make install
+
+or DESTDIR=<destination directory> make install
+
+Prefix '/usr/local' or 'c:\Program Files\' is used by. To change it, pass option CMAKE_INSTALL_PREFIX
+during configure phase:
+
+cmake -DCMAKE_INSTALL_PREFIX=/usr ..
