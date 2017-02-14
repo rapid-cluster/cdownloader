@@ -2,7 +2,7 @@ CDownloader: Cluster Science Archive (CSA) downloading tool
 
 -----------------------------------------------------------------
 
-To compile this one needs:
+To compile this software, one needs:
 1. A C++ compiler with C++11 support
 2. CMake (www.cmake.org), version 3.6.0 or greater
 3. LibCURL (curl.haxx.se/libcurl/) (not tested with versions older than 7.52.1)
