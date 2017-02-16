@@ -26,7 +26,7 @@ endif(NOT jsoncpp_FOUND)
 find_package(LibArchive REQUIRED)
 find_package(CDF 3.3.1 REQUIRED)
 
-find_package(Boost COMPONENTS date_time filesystem log program_options system REQUIRED)
+find_package(Boost COMPONENTS date_time filesystem log program_options REQUIRED)
 include(CheckIncludeFileCXX)
 
 check_include_file_cxx(unistd.h HAVE_UNISTD_H)

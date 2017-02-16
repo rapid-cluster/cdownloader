@@ -1,0 +1,86 @@
+language: cpp
+cache: ccache
+
+# Ubuntu 14.04 Trusty support
+sudo: required
+dist: trusty
+
+addons:
+    apt:
+      sources: &common_sources
+        - sourceline: 'ppa:jonathonf/binutils'
+        - sourceline: 'ppa:adrozdoff/cmake'
+        - sourceline: 'ppa:samuel-bachmann/boost'
+      packages: &common_deps
+        - binutils
+        - cmake
+        - libjsoncpp-dev
+        - libarchive-dev
+        - libboost-date-time1.60-dev
+        - libboost-filesystem1.60-dev
+        - libboost-log1.60-dev
+        - libboost-program-options1.60-dev
+        - libboost-regex1.60-dev
+
+matrix:
+    include:
+    - env: COMPILER_VERSION=5
+      compiler: gcc
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+            - sourceline: 'ppa:jonathonf/binutils'
+            - sourceline: 'ppa:adrozdoff/cmake'
+            - sourceline: 'ppa:samuel-bachmann/boost'
+          packages:
+            - *common_deps
+            - [gcc-5, g++-5]
+    - env: COMPILER_VERSION=6
+      compiler: gcc
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+            - sourceline: 'ppa:jonathonf/binutils'
+            - sourceline: 'ppa:adrozdoff/cmake'
+            - sourceline: 'ppa:samuel-bachmann/boost'
+          packages:
+            - *common_deps
+            - [gcc-6, g++-6]
+    - env: COMPILER_VERSION=3.9
+      compiler: clang
+      addons:
+        apt:
+          sources:
+            - llvm-toolchain-trusty-3.9
+            - ubuntu-toolchain-r-test
+            - sourceline: 'ppa:jonathonf/binutils'
+            - sourceline: 'ppa:adrozdoff/cmake'
+            - sourceline: 'ppa:samuel-bachmann/boost'
+          packages:
+            - *common_deps
+            - clang-3.9
+            - libstdc++-6-dev
+
+notifications:
+  email:
+    on_success: change
+    on_failure: change
+
+
+before_install:
+    - |
+        sudo update-alternatives --install /usr/bin/${CC} ${CC} /usr/bin/${CC}-${COMPILER_VERSION} 60 --slave /usr/bin/${CXX} ${CXX} /usr/bin/${CXX}-${COMPILER_VERSION}
+        export CXX="${CXX}-${COMPILER_VERSION}" CC="${CC}-${COMPILER_VERSION}"
+    - |
+
+install:
+    - ./.travis/install-cdf.sh
+
+before_script:
+    - mkdir build
+    - cd build
+    - cmake ..
+
+script: make
