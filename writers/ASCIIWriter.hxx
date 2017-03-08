@@ -40,7 +40,7 @@ namespace cdownload {
 		ASCIIWriter();
 		~ASCIIWriter();
 
-		void initialize(const std::vector<Field>& fields) override;
+		void initialize(const std::vector<Field>& fields, bool writeEpochColumn) override;
 		void open(const path & fileName) override;
 		bool canAppend(std::size_t& lastWrittenCellNumber) override;
 		void truncate() override;
@@ -56,7 +56,7 @@ namespace cdownload {
 	class DirectASCIIWriter: public DirectDataWriter, public ASCIIWriter {
 	private:
 		void writeHeader() override;
-		void write(std::size_t cellNumber, const datetime & dt, const std::vector<const void *> & line) override;
+		void write(std::size_t cellNumber, const datetime& dt, const std::vector<const void*>& line) override;
 	};
 
 	class AveragedDataASCIIWriter: public AveragedDataWriter, public ASCIIWriter {

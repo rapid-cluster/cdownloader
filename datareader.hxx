@@ -48,7 +48,13 @@ namespace cdownload {
 		           std::map<DatasetName, std::shared_ptr<DataSource>>& datasources,
 		           const DatasetProductsMap& fieldsToRead,
 		           const std::vector<Field>& fields, const Filters::TimeFilter* timeFilter);
-		virtual bool readNextCell() = 0; //! returns @true if cell was read successfully
+
+		/*! \brief Reads next cell
+		 *
+		 * \returns pair of @true, <cell middle time> if cell was read successfully and
+		 * pair of @false, <zero time> otherwise
+		 */
+		virtual std::pair<bool,datetime> readNextCell() = 0; //! returns @true if cell was read successfully
 		bool eof() const;
 		bool fail() const;
 //      const void* buffer(const ProductName& var) const;
@@ -139,8 +145,7 @@ namespace cdownload {
 		           const DatasetProductsMap& fieldsToRead,
 		           std::vector<AveragedVariable>& cells,
 		           const std::vector<Field>& fields, const Filters::TimeFilter* timeFilter);
-		bool readNextCell() override;
-		datetime cellMidTime() const;
+		std::pair<bool,datetime> readNextCell() override;
 	private:
 		CellReadStatus readNextCell(const datetime& cellStart, DataSetReadingContext& ds);
 		void copyValuesToAveragingCells(const DataSetReadingContext& ds);
@@ -158,12 +163,12 @@ namespace cdownload {
 		           std::map<DatasetName, std::shared_ptr<DataSource>>& datasources,
 		           const DatasetProductsMap& fieldsToRead,
 		           const std::vector<Field>& fields, const Filters::TimeFilter* timeFilter);
-		bool readNextCell() override;
-
+		std::pair<bool,datetime> readNextCell() override;
+#if 0
 		datetime cellMidTime() const {
 			return datetime(dsContext_->lastReadTimeStamp);
 		}
-
+#endif
 		using DataReader::bufferPointers;
 	private:
 		bool skipToTime(const datetime& time, DataSetReadingContext& ds);

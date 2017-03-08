@@ -192,6 +192,17 @@ namespace cdownload {
 			return disableAveraging_;
 		}
 		void disableAveraging(bool v);
+
+		bool writeEpoch() const {
+			return writeEpoch_;
+		}
+		void writeEpoch(bool v);
+
+		bool plasmaSheetFilter() const {
+			return plasmaSheetFilter_;
+		}
+		void plasmaSheetFilter(bool v);
+
 	private:
 		datetime startDate_;
 		datetime endDate_;
@@ -200,15 +211,17 @@ namespace cdownload {
 		path expansionDictionaryFile_;
 		path outputDir_;
 		path workDir_;
-		bool continue_;
+		bool continue_ = false;
 		path cacheDir_;
-		bool downloadMissingData_;
+		bool downloadMissingData_ = true;
 		std::vector<QualityFilterParameters> qualityFilters_;
 		std::vector<DensityFilterParameters> densityFilters_;
-		bool onlyNightSide_;
+		bool onlyNightSide_ = false;
 		path timeRangesFileName_;
-		bool allowBlanks_;
-		bool disableAveraging_;
+		bool allowBlanks_ = false;
+		bool disableAveraging_ = false;
+		bool writeEpoch_ = false;
+		bool plasmaSheetFilter_ = true;
 	};
 
 	std::ostream& operator<<(std::ostream& os, const Parameters& p);

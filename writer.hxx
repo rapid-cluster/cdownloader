@@ -46,7 +46,7 @@ namespace cdownload {
 		 * @param fields List of fields in the data record array. This list contains the same
 		 * fields (and in the same order) as they need to be written into the output file.
 		 */
-		virtual void initialize(const std::vector<Field>& fields);
+		virtual void initialize(const std::vector<Field>& fields, bool writeEpochColumn);
 		virtual void writeHeader() = 0;
 
 		virtual void open(const path& fileName) = 0;
@@ -65,7 +65,12 @@ namespace cdownload {
 			return fields_;
 		}
 
+		bool writeEpochColumn() const {
+			return writeEpochColumn_;
+		}
+
 	private:
+		bool writeEpochColumn_;
 		std::vector<Field> fields_;
 	};
 

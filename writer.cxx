@@ -27,10 +27,12 @@
 // intentionally intialize numOfCellsToWrite_ to large number
 // that will lead to a crash if Writer::initialize() was not called
 cdownload::Writer::Writer()
+	: writeEpochColumn_{false}
 {
 }
 
-void cdownload::Writer::initialize(const std::vector<cdownload::Field>& fields)
+void cdownload::Writer::initialize(const std::vector<cdownload::Field>& fields, bool writeEpochColumn)
 {
 	fields_ = fields;
+	writeEpochColumn_ = writeEpochColumn;
 }

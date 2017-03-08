@@ -290,6 +290,15 @@ void cdownload::Parameters::disableAveraging(bool v)
 	disableAveraging_ = v;
 }
 
+void cdownload::Parameters::writeEpoch(bool v)
+{
+	writeEpoch_ = v;
+}
+
+void cdownload::Parameters::plasmaSheetFilter(bool v)
+{
+	plasmaSheetFilter_ = v;
+}
 
 namespace {
 	void printOutput(std::ostream& os, const cdownload::Output& o,

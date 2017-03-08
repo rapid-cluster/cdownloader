@@ -81,6 +81,9 @@ void cdownload::AveragedDataASCIIWriter::write(std::size_t cellNumber, const dat
                                    const std::vector<AveragedVariable>& cells)
 {
 	outputStream() << cellNumber << '\t' << dt;
+	if (writeEpochColumn()) {
+		outputStream() << '\t' << dt.milliseconds();
+	}
 	for (const Field& f: fields()) {
 		const AveragedVariable& av = f.data(cells);
 		for (const AveragingRegister& ac: av) {
@@ -123,21 +126,27 @@ void cdownload::AveragedDataASCIIWriter::writeHeader()
 {
 	// writing a header line
 	outputStream() << "CellNo\tMidTime";
+	if (writeEpochColumn()) {
+		outputStream() << "\tEpoch";
+	}
 	for (const FieldDesc& f: fields()) {
 		printAveragedFieldHeader(outputStream(), f.name().name(), f.elementCount());
 	}
 	outputStream() << std::endl << std::flush;
 }
 
-void cdownload::ASCIIWriter::initialize(const std::vector<Field>& fields)
+void cdownload::ASCIIWriter::initialize(const std::vector<Field>& fields, bool writeEpochColumn)
 {
-	base::initialize(fields);
+	base::initialize(fields, writeEpochColumn);
 }
 
 void cdownload::DirectASCIIWriter::writeHeader()
 {
 	// writing a header line
 	outputStream() << "CellNo\tMidTimeEpoch";
+	if (writeEpochColumn()) {
+		outputStream() << "\tEpoch";
+	}
 	for (const FieldDesc& f: fields()) {
 		printDirectFieldHeader(outputStream(), f.name().name(), f.elementCount());
 	}

@@ -91,7 +91,7 @@ void cdownload::BinaryWriter::truncate()
 	output_.reset(std::fopen(outputFileName_.c_str(), "w+"));
 }
 
-void cdownload::BinaryWriter::initialize(const std::vector<Field>& fields)
+void cdownload::BinaryWriter::initialize(const std::vector<Field>& fields, bool writeEpochColumn)
 {
 	stride_ = sizeof(std::size_t) + sizeof(decltype(timeduration().seconds()));
 		const std::size_t elementSize = (sizeof(AveragingRegister::mean_value_type) +
@@ -101,7 +101,7 @@ void cdownload::BinaryWriter::initialize(const std::vector<Field>& fields)
 		std::size_t fieldSize = elementSize * f.elementCount();
 		stride_ += fieldSize;
 	}
-	base::initialize(fields);
+	base::initialize(fields, writeEpochColumn);
 }
 
 bool cdownload::BinaryWriter::canAppend(std::size_t& lastWrittenCellNumber)
@@ -126,6 +126,11 @@ void cdownload::AveragedDataBinaryWriter::write(std::size_t cellNumber, const da
 	const auto dtSeconds = dt.seconds();
 
 	std::fwrite(&dtSeconds, sizeof(dtSeconds), 1, outputStream());
+
+	if (writeEpochColumn()) {
+		const auto epoch = dt.milliseconds();
+		std::fwrite(&epoch, sizeof(epoch), 1, outputStream());
+	}
 
 	struct CellValues {
 		double mean;
@@ -190,6 +195,11 @@ void cdownload::AveragedDataBinaryWriter::writeHeader()
 		datatypenaming::NATIVE_UNSIGNED_INT << sizeof(std::size_t) * CHAR_BIT << "]>\t" <<
 		"MidTime <[" <<
 		datatypenaming::NATIVE_REAL << sizeof(decltype(timeduration().seconds())) * CHAR_BIT << "]>";
+	if (writeEpochColumn()) {
+		headerFile << "Epoch <[" <<
+		datatypenaming::NATIVE_REAL << sizeof(decltype(timeduration().milliseconds())) * CHAR_BIT << "]>";
+
+	}
 	for (const FieldDesc& f: fields()) {
 		printAveragedFieldHeader(headerFile, f.name().name(), f.elementCount());
 	}
@@ -206,14 +216,19 @@ void cdownload::DirectBinaryWriter::writeHeader()
 	headerFile << "CellNo <[" <<
 		datatypenaming::NATIVE_UNSIGNED_INT << sizeof(std::size_t) * CHAR_BIT << "]>\t" <<
 		"MidTimeEpoch <[" <<
-		datatypenaming::NATIVE_REAL << sizeof(decltype(datetime().milliseconds())) * CHAR_BIT << "]>";
+		datatypenaming::NATIVE_REAL << sizeof(decltype(datetime().seconds())) * CHAR_BIT << "]>";
+	if (writeEpochColumn()) {
+		headerFile << "Epoch <[" <<
+		datatypenaming::NATIVE_REAL << sizeof(decltype(timeduration().milliseconds())) * CHAR_BIT << "]>";
+
+	}
 	for (const FieldDesc& f: fields()) {
 		printRawFieldHeader(headerFile, f.name().name(), f.elementCount());
 	}
 	headerFile << std::endl;
 }
 
-void cdownload::AveragedDataBinaryWriter::initialize(const std::vector<Field>& fields)
+void cdownload::AveragedDataBinaryWriter::initialize(const std::vector<Field>& fields, bool writeEpochColumn)
 {
 	// we support only double values so far
 	for (const Field& f: fields) {
@@ -222,7 +237,7 @@ void cdownload::AveragedDataBinaryWriter::initialize(const std::vector<Field>& f
 			throw std::runtime_error("Only double columns are supported");
 		}
 	}
-	BinaryWriter::initialize(fields);
+	BinaryWriter::initialize(fields, writeEpochColumn);
 }
 
 
@@ -233,6 +248,11 @@ void cdownload::DirectBinaryWriter::write(std::size_t cellNumber, const datetime
 	const auto dtSeconds = dt.seconds();
 
 	std::fwrite(&dtSeconds, sizeof(dtSeconds), 1, outputStream());
+
+	if (writeEpochColumn()) {
+		const auto epoch = dt.milliseconds();
+		std::fwrite(&epoch, sizeof(epoch), 1, outputStream());
+	}
 
 	for (const Field& f: fields()) {
 		const double* data = f.data<double>(line);

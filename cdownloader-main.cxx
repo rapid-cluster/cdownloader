@@ -114,14 +114,16 @@ int main(int ac, char** av)
 	    ("continue", po::value<bool>()->default_value(false)->implicit_value(true), "Continue downloading existing output files")
 	    ("cache-dir", po::value<path>(), "Directory with pre-downloaded CDF files")
 	    ("download-missing", po::value<bool>()->default_value(true)->implicit_value(true),
-	         "Download missing from cache data");
+	         "Download missing from cache data")
+// 	    ("omni-db-file")
+		;
 
 	po::options_description timeOptions("Time options");
 
 	timeOptions.add_options()
 	    ("start", po::value<cdownload::datetime>()->default_value(cdownload::makeDateTime(2000, 8, 10)), "Start time")
 	    ("end", po::value<cdownload::datetime>()->default_value(cdownload::datetime::utcNow()), "End time")
-	    ("cell-size", po::value<cdownload::timeduration>()->required(), "Size of the averaging cell")
+	    ("cell-size", po::value<cdownload::timeduration>(), "Size of the averaging cell")
 	    ("valid-time-ranges", po::value<path>(), "File with time cells")
 	    ("no-averaging", po::value<bool>()->default_value(false)->implicit_value(true), "Do not average values")
 	;
@@ -147,6 +149,7 @@ int main(int ac, char** av)
 	optionalFilters.add_options()
 		("nighttime-only", po::value<bool>()->implicit_value(true), "Use only night time data")
 		("allow-blanks", po::value<bool>()->implicit_value(true), "Do not remove blank values")
+		("plasma-sheet", po::value<bool>()->implicit_value(true)->default_value(true), "Use measurements in plasmasheet only")
 	;
 
 	desc.add(optionalFilters);
@@ -157,6 +160,7 @@ int main(int ac, char** av)
 	    ("output-dir", po::value<cdownload::path>()->default_value("/tmp"), "Output directory")
 	    ("work-dir", po::value<cdownload::path>()->default_value("/tmp"), "Working directory")
 	    ("output", po::value<std::vector<cdownload::path> >()->composing()->required(), "List of files with output descriptions")
+	    ("write-epoch-column", po::value<bool>()->implicit_value(true), "Add \"Epoch\" column to the outputs, containing CDF_EPOCH value")
 	;
 
 	desc.add(outputOptions);
@@ -219,7 +223,12 @@ int main(int ac, char** av)
 			vm["min-density-value"].as<double>());
 	}
 
-	parameters.onlyNightSide(vm.count("nighttime-only"));
+	parameters.plasmaSheetFilter(vm["plasma-sheet"].as<bool>());
+
+	if (vm.count("nighttime-only")) {
+		parameters.onlyNightSide(vm["nighttime-only"].as<bool>());
+	}
+
 	if (vm.count("allow-blanks")) {
 		parameters.allowBlanks(vm["allow-blanks"].as<bool>());
 	}
@@ -234,6 +243,10 @@ int main(int ac, char** av)
 			return 2;
 		}
 		parameters.disableAveraging(true);
+	}
+
+	if (vm.count("write-epoch-column")) {
+		parameters.writeEpoch(vm["write-epoch-column"].as<bool>());
 	}
 
 	try {
@@ -292,8 +305,15 @@ int main(int ac, char** av)
 
 	parameters.setExpansionDictFile(vm["expansion-dict"].as<path>());
 	parameters.setTimeRange(vm["start"].as<cdownload::datetime>(), vm["end"].as<cdownload::datetime>());
-	parameters.setTimeInterval(vm["cell-size"].as<cdownload::timeduration>());
-
+	if (vm.count("cell-size")) {
+		parameters.setTimeInterval(vm["cell-size"].as<cdownload::timeduration>());
+	} else {
+		if (!vm.count("no-averaging") || !vm["no-averaging"].as<bool>()) {
+			std::cerr << "Cell size may not be omitted in averaging mode" << std::endl;
+			return 2;
+		}
+		parameters.setTimeInterval(cdownload::timeduration(0, 1, 0, 0.));
+	}
 	cdownload::Driver driver {parameters};
 	driver.doTask();
 

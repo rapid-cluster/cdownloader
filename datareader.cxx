@@ -298,10 +298,12 @@ cdownload::AveragingDataReader::readNextCell(const datetime& cellStart, cdownloa
 // 	return true;
 }
 
+#if 0
 cdownload::datetime cdownload::AveragingDataReader::cellMidTime() const
 {
-	return currentStartTime_ + cellLength_ / 2;
+	return ;
 }
+#endif
 
 void cdownload::AveragingDataReader::copyValuesToAveragingCells(const cdownload::DataReader::DataSetReadingContext& ds)
 {
@@ -336,7 +338,7 @@ void cdownload::AveragingDataReader::copyValuesToAveragingCells(const cdownload:
 	}
 }
 
-bool cdownload::AveragingDataReader::readNextCell()
+std::pair<bool,cdownload::datetime> cdownload::AveragingDataReader::readNextCell()
 {
 	for (AveragedVariable& cell: cells_) {
 		cell.scheduleReset();
@@ -344,7 +346,7 @@ bool cdownload::AveragingDataReader::readNextCell()
 
 	if (currentStartTime_ >= endTime()) {
 		setStateFlag(ReaderState::EoF);
-		return false;
+		return {false, datetime()};
 	}
 
 #ifdef DEBUG_LOG_EVERY_CELL
@@ -374,7 +376,7 @@ bool cdownload::AveragingDataReader::readNextCell()
 	currentStartTime_ += cellLength_;
 	if (eofInOneOfTheDatasets) {
 		setStateFlag(ReaderState::EoF);
-		return false;
+		return {false, datetime()};
 	}
 	if (!anyCellWasReadSuccesfully) {
 		// check for EOF
@@ -388,7 +390,7 @@ bool cdownload::AveragingDataReader::readNextCell()
 		setStateFlag(ReaderState::EoF, eof);
 	}
 
-	return anyCellWasReadSuccesfully;
+	return {anyCellWasReadSuccesfully, currentStartTime_ + cellLength_ / 2};
 }
 
 
@@ -406,23 +408,33 @@ cdownload::DirectDataReader::DirectDataReader(const datetime& startTime, const d
 }
 
 
-bool cdownload::DirectDataReader::readNextCell()
+std::pair<bool,cdownload::datetime> cdownload::DirectDataReader::readNextCell()
 {
 #ifdef DEBUG_LOG_EVERY_CELL
 	BOOST_LOG_TRIVIAL(trace) << "Reading record #" << dsContext_->readRecordsCount;
 #endif
 
 	while (true) {
-		double epoch = dsContext_->reader->readTimeStampRecord(dsContext_->readRecordsCount - 1);
-		if (epoch > endTime().milliseconds()) {
+		const bool epochReadOk = dsContext_->reader->readTimeStampRecord(dsContext_->readRecordsCount);
+		const double epoch =
+			*static_cast<const double*>(dsContext_->reader->bufferForVariable(dsContext_->timestampVariableIndex)); // EPCH16?
+		if (!epochReadOk || epoch > endTime().milliseconds()) {
 			setStateFlag(ReaderState::EoF, true);
-			return false;
+			return {false, datetime()};
 		}
-		bool readOk = dsContext_->reader->readRecord(dsContext_->readRecordsCount - 1, true); // we've read timestamp already
+
+		if (timeFilter() && !timeFilter()->test(epoch)) {
+			++dsContext_->readRecordsCount;
+			continue;
+		}
+
+		const bool readOk = dsContext_->reader->readRecord(dsContext_->readRecordsCount++, true); // we've read timestamp already
 		if (!readOk) {
 			setStateFlag(ReaderState::Fail);
-			return false;
+			return {false, datetime()};
 		}
+
+		dsContext_->lastReadTimeStamp = epoch;
 
 		bool filtersPassed = true;
 		// the record was read successfully and belongs to the current output cell -> test by filters
@@ -440,7 +452,7 @@ bool cdownload::DirectDataReader::readNextCell()
 			continue;
 		}
 
-		return true;
+		return {true, dsContext_->lastReadTimeStamp};
 	}
 }
 
@@ -449,6 +461,7 @@ bool cdownload::DirectDataReader::skipToTime(const datetime& time, DataSetReadin
 	while(true) {
 		try {
 			ds.readRecordsCount = ds.reader->findTimestamp(time.milliseconds(), ds.readRecordsCount);
+			return true;
 		} catch (std::runtime_error&) {
 			if (advanceDataSource(ds)) {
 				continue;

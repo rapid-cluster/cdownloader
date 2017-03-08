@@ -239,7 +239,7 @@ void cdownload::Driver::doTask()
 	std::vector<std::unique_ptr<Writer> > writers;
 	for (const Output& o: params_.outputs()) {
 		writers.push_back(createWriterForOutput(o));
-		writers.back()->initialize(fieldsForWriters[o.name()]);
+		writers.back()->initialize(fieldsForWriters[o.name()], params_.writeEpoch());
 	}
 
 	if (!params_.allowBlanks()) {
@@ -313,24 +313,24 @@ void cdownload::Driver::doTask()
 		}
 
 		for (; !reader.eof() && !reader.fail(); ++cellNo) {
-			const datetime cellMidTime = reader.cellMidTime();
-			if (reader.readNextCell()) {
+			auto readResult = reader.readNextCell();
+			if (readResult.first) {
 				bool cellPassedFiltering = true;
 				for (const auto& filter: averageDataFilters) {
 					if (!filter->test(averagingCells)) {
 						cellPassedFiltering = false;
 #ifdef DEBUG_LOG_EVERY_CELL
-						BOOST_LOG_TRIVIAL(trace) << "Rejecting Cell " << cellNo << " (" << cellMidTime << ")";
+						BOOST_LOG_TRIVIAL(trace) << "Rejecting Cell " << cellNo << " (" << readResult.second << ")";
 #endif
 						break;
 					}
 				}
 				if (cellPassedFiltering) {
 #ifdef DEBUG_LOG_EVERY_CELL
-					BOOST_LOG_TRIVIAL(trace) << "Writing Cell " << cellMidTime;
+					BOOST_LOG_TRIVIAL(trace) << "Writing Cell " << readResult.second;
 #endif
 					for (DirectDataWriter* writer: dWriters) {
-						writer->write(cellNo, cellMidTime, reader.bufferPointers());
+						writer->write(cellNo, readResult.second, reader.bufferPointers());
 					}
 				}
 			}
@@ -344,24 +344,24 @@ void cdownload::Driver::doTask()
 		}
 
 		for (; !reader.eof() && !reader.fail(); ++cellNo) {
-			const datetime cellMidTime = reader.cellMidTime();
-			if (reader.readNextCell()) {
+			auto readResult = reader.readNextCell();
+			if (readResult.first) {
 				bool cellPassedFiltering = true;
 				for (const auto& filter: averageDataFilters) {
 					if (!filter->test(averagingCells)) {
 						cellPassedFiltering = false;
 #ifdef DEBUG_LOG_EVERY_CELL
-						BOOST_LOG_TRIVIAL(trace) << "Rejecting Cell " << cellNo << " (" << cellMidTime << ")";
+						BOOST_LOG_TRIVIAL(trace) << "Rejecting Cell " << cellNo << " (" << readResult.second << ")";
 #endif
 						break;
 					}
 				}
 				if (cellPassedFiltering) {
 #ifdef DEBUG_LOG_EVERY_CELL
-					BOOST_LOG_TRIVIAL(trace) << "Writing Cell " << cellMidTime;
+					BOOST_LOG_TRIVIAL(trace) << "Writing Cell " << readResult.second;
 #endif
 					for (AveragedDataWriter* writer: aWriters) {
-						writer->write(cellNo, cellMidTime, averagingCells);
+						writer->write(cellNo, readResult.second, averagingCells);
 					}
 				}
 			}
@@ -404,7 +404,10 @@ void cdownload::Driver::createFilters(std::vector<std::shared_ptr<RawDataFilter>
 	}
 
 	rawDataFilters.emplace_back(new Filters::BadDataFilter());
-	rawDataFilters.emplace_back(new Filters::PlasmaSheetModeFilter());
+
+	if (params_.plasmaSheetFilter()) {
+		rawDataFilters.emplace_back(new Filters::PlasmaSheetModeFilter());
+	}
 
 	for (const auto& qfp: params_.qualityFilters()) {
 		rawDataFilters.emplace_back(new Filters::QualityFilter(qfp.product, qfp.minQuality));
@@ -418,7 +421,9 @@ void cdownload::Driver::createFilters(std::vector<std::shared_ptr<RawDataFilter>
 			averagedDataFilters.emplace_back(new Filters::H1DensityFilter(product, dfp.minDensity));
 		}
 
-		averagedDataFilters.emplace_back(new Filters::PlasmaSheet());
+		if (params_.plasmaSheetFilter()) {
+			averagedDataFilters.emplace_back(new Filters::PlasmaSheet());
+		}
 	}
 }
 

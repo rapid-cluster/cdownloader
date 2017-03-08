@@ -40,7 +40,7 @@ namespace cdownload {
 		BinaryWriter();
 		~BinaryWriter();
 
-		void initialize(const std::vector<Field>& fields) override;
+		void initialize(const std::vector<Field>& fields, bool writeEpochColumn) override;
 		void open(const path& fileName) override;
 		bool canAppend(std::size_t& lastWrittenCellNumber) override;
 		void truncate() override;
@@ -73,7 +73,7 @@ namespace cdownload {
 	class AveragedDataBinaryWriter: public AveragedDataWriter, public BinaryWriter {
 
 	private:
-		void initialize(const std::vector<Field>& fields) override;
+		void initialize(const std::vector<Field>& fields, bool writeEpochColumn) override;
 		void writeHeader() override;
 		void write(std::size_t cellNumber, const datetime& dt,
 		           const std::vector<AveragedVariable>& cells) override;
