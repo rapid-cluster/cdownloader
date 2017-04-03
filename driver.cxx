@@ -28,6 +28,7 @@
 #include "datasource.hxx"
 #include "downloader.hxx"
 #include "field.hxx"
+#include "fieldbuffer.hxx"
 #include "metadata.hxx"
 #include "parameters.hxx"
 #include "unpacker.hxx"
@@ -80,14 +81,19 @@ namespace {
 			BOOST_LOG_TRIVIAL(trace) << "Expanding output: " << output;
 			std::map<std::string, std::vector<ProductName> > expandedProductsMap;
 			for (const std::string& ds: output.datasetNames()) {
-				auto i = availableProducts.find(ds);
-				if (i == availableProducts.end()) {
-					throw std::runtime_error("Dataset '" + ds + "' is not present in the downloaded files");
+				if (ProductName::isPseudoDataset(ds)) {
+					// TODO make expansion for those too
+					expandedProductsMap[ds] = output.productsForDataset(ds);
+				} else {
+					auto i = availableProducts.find(ds);
+					if (i == availableProducts.end()) {
+						throw std::runtime_error("Dataset '" + ds + "' is not present in the downloaded files");
+					}
+					std::vector<cdownload::ProductName> expandedProducts =
+						cdownload::expandWildcardsCaseSensitive(
+							output.productsForDataset(ds), i->second.variableNames());
+					expandedProductsMap[ds] = expandedProducts;
 				}
-				std::vector<cdownload::ProductName> expandedProducts =
-					cdownload::expandWildcardsCaseSensitive(
-						output.productsForDataset(ds), i->second.variableNames());
-				expandedProductsMap[ds] = expandedProducts;
 			}
 			res.emplace_back(output.name(), output.format(), expandedProductsMap);
 		}
@@ -134,9 +140,12 @@ void cdownload::Driver::doTask()
 	datetime availableStartDateTime = makeDateTime(1999, 1, 1);
 	datetime availableEndDateTime = datetime::utcNow();
 
-	std::vector<DatasetName> requiredDatasets = collectRequireddDatasets(params_.outputs(), allFilters);
+	std::vector<DatasetName> requiredDatasets = collectRequiredDatasets(params_.outputs(), allFilters);
 
 	for (const auto& ds: requiredDatasets) {
+		if (ProductName::isPseudoDataset(ds)) {
+			continue;
+		}
 		auto dataset = meta.dataset(ds);
 		BOOST_LOG_TRIVIAL(trace) << "Time range for dataset " << dataset.name() << ": [" <<
 		    dataset.minTime() << ',' << dataset.maxTime() << ']';
@@ -182,6 +191,20 @@ void cdownload::Driver::doTask()
 	ProductsToRead fieldsToRead = collectAllProductsToRead(availableProducts, expandedOutputs, allFilters);
 	BOOST_LOG_TRIVIAL(trace) << "Fields to read (write): " << put_list(fieldsToRead.productsToWrite);
 	BOOST_LOG_TRIVIAL(trace) << "Fields to read (filter): " << put_list(fieldsToRead.productsForFiltersOnly);
+	BOOST_LOG_TRIVIAL(trace) << "Filter variables: ";
+	for (const auto& fp: fieldsToRead.filterVariables) {
+		BOOST_LOG_TRIVIAL(trace) << '\t' << fp.first->name() << ": " << put_list(fp.second);
+	}
+
+	std::vector<FieldDesc> allFilterFields;
+	for (const auto& fp: fieldsToRead.filterFields) {
+		std::copy(fp.second.begin(), fp.second.end(), std::back_inserter(allFilterFields));
+	}
+
+	FieldBuffer filterVariablesBuffer(allFilterFields);
+
+	std::vector<void*> filterVariables = filterVariablesBuffer.writeBuffers();
+	std::vector<const void*> filterVariablesForWriters = filterVariablesBuffer.readBuffers();
 
 	assert(!fieldsToRead.productsToWrite.empty());
 
@@ -217,19 +240,18 @@ void cdownload::Driver::doTask()
 
 	BOOST_LOG_TRIVIAL(trace) << "Collected fields: " << put_list(fields);
 
-	std::map<std::string, std::vector<Field> > fieldsForWriters;
 	for (const Output& o: expandedOutputs) {
-		fieldsForWriters[o.name()] = std::vector<Field>();
 		for (const std::pair<DatasetName, std::vector<ProductName> >& dsp: o.products()) {
 			for (const ProductName& pr: dsp.second) {
+				if (pr.isPseudoDataset()) {
+					continue;
+				}
 				auto fi = std::find_if(fields.begin(), fields.end(), [&pr](const Field& f) {
 					return f.name() == pr.name();
 				});
 				if (fi == fields.end()) {
 					BOOST_LOG_TRIVIAL(error) << "Can not find product " << pr << " in fields array";
 				}
-				assert(fi != fields.end());
-				fieldsForWriters[o.name()].push_back(*fi);
 			}
 		}
 	}
@@ -238,14 +260,14 @@ void cdownload::Driver::doTask()
 
 	std::vector<std::unique_ptr<Writer> > writers;
 	for (const Output& o: params_.outputs()) {
-		writers.push_back(createWriterForOutput(o));
-		writers.back()->initialize(fieldsForWriters[o.name()], params_.writeEpoch());
+		writers.push_back(createWriterForOutput(o, fields, filterVariablesBuffer.fields()));
 	}
 
 	if (!params_.allowBlanks()) {
 		addBlankDataFilters(fields, rawFilters);
 	}
-	initializeFilters(fields, rawFilters, averageDataFilters);
+
+	initializeFilters(fields, filterVariablesBuffer.fields(), rawFilters, averageDataFilters);
 
 	std::size_t cellNo = 0;
 
@@ -316,6 +338,7 @@ void cdownload::Driver::doTask()
 			auto readResult = reader.readNextCell();
 			if (readResult.first) {
 				bool cellPassedFiltering = true;
+#if 0
 				for (const auto& filter: averageDataFilters) {
 					if (!filter->test(averagingCells)) {
 						cellPassedFiltering = false;
@@ -325,12 +348,13 @@ void cdownload::Driver::doTask()
 						break;
 					}
 				}
+#endif
 				if (cellPassedFiltering) {
 #ifdef DEBUG_LOG_EVERY_CELL
 					BOOST_LOG_TRIVIAL(trace) << "Writing Cell " << readResult.second;
 #endif
 					for (DirectDataWriter* writer: dWriters) {
-						writer->write(cellNo, readResult.second, reader.bufferPointers());
+						writer->write(cellNo, readResult.second, {reader.bufferPointers(), filterVariablesForWriters});
 					}
 				}
 			}
@@ -348,7 +372,7 @@ void cdownload::Driver::doTask()
 			if (readResult.first) {
 				bool cellPassedFiltering = true;
 				for (const auto& filter: averageDataFilters) {
-					if (!filter->test(averagingCells)) {
+					if (!filter->test(averagingCells, filterVariables)) {
 						cellPassedFiltering = false;
 #ifdef DEBUG_LOG_EVERY_CELL
 						BOOST_LOG_TRIVIAL(trace) << "Rejecting Cell " << cellNo << " (" << readResult.second << ")";
@@ -361,7 +385,7 @@ void cdownload::Driver::doTask()
 					BOOST_LOG_TRIVIAL(trace) << "Writing Cell " << readResult.second;
 #endif
 					for (AveragedDataWriter* writer: aWriters) {
-						writer->write(cellNo, readResult.second, averagingCells);
+						writer->write(cellNo, readResult.second, {averagingCells}, {filterVariablesForWriters});
 					}
 				}
 			}
@@ -369,24 +393,28 @@ void cdownload::Driver::doTask()
 	}
 }
 
-std::unique_ptr<cdownload::Writer> cdownload::Driver::createWriterForOutput(const cdownload::Output& output) const
+std::unique_ptr<cdownload::Writer>
+cdownload::Driver::createWriterForOutput(const cdownload::Output& output,
+                     const std::vector<Field>& dataFields, const std::vector<Field>& filterVariables) const
 {
+
+// 	fieldsForWriters[o.name()], params_.writeEpoch()
 	std::unique_ptr<cdownload::Writer> res;
 	switch (output.format()) {
 	case Output::Format::ASCII: {
 		if (params_.disableAveraging()) {
-			res.reset(new DirectASCIIWriter());
+			res.reset(new DirectASCIIWriter({dataFields, filterVariables}, params_.writeEpoch()));
 		} else {
-			res.reset(new AveragedDataASCIIWriter());
+			res.reset(new AveragedDataASCIIWriter({dataFields}, {filterVariables}, params_.writeEpoch()));
 		}
 		res->open(params_.outputDir() / (output.name() + ".txt"));
 		return res;
 	}
 	case Output::Format::Binary: {
 		if (params_.disableAveraging()) {
-			res.reset(new DirectBinaryWriter());
+			res.reset(new DirectBinaryWriter({dataFields, filterVariables}, params_.writeEpoch()));
 		} else {
-			res.reset(new AveragedDataBinaryWriter());
+			res.reset(new AveragedDataBinaryWriter({dataFields}, {filterVariables}, params_.writeEpoch()));
 		}
 		res->open(params_.outputDir() / (output.name() + ".bin"));
 		return res;
@@ -442,27 +470,38 @@ void cdownload::Driver::addBlankDataFilters(const std::vector<Field>& fields,
 }
 
 void cdownload::Driver::initializeFilters(const std::vector<Field>& fields,
+                                          const std::vector<Field>& filterVariables,
                                           std::vector<std::shared_ptr<RawDataFilter> >& rawDataFilters,
                                           std::vector<std::shared_ptr<AveragedDataFilter> >& averagedDataFilters)
 {
 	for (auto& filter: rawDataFilters) {
-		filter->initialize(fields);
+		filter->initialize(fields, filterVariables);
 	}
 
 	for (auto& filter: averagedDataFilters) {
-		filter->initialize(fields);
+		filter->initialize(fields, filterVariables);
 	}
 }
+
 
 cdownload::Driver::ProductsToRead
 cdownload::Driver::collectAllProductsToRead(const std::map<cdownload::DatasetName, CDF::Info>& available,
                                             const std::vector<Output>& outputs,
                                             const std::vector<std::shared_ptr<Filter> >& filters)
 {
+	std::vector<ProductName> requestedFilterVariables;
 	ProductsToRead res;
 	for (const Output& o: outputs) {
-		assert(!o.products().empty());
+		if (o.products().empty()) {
+			throw std::runtime_error("Output '" + o.name() + "' does not contain products");
+		}
+
 		for (const auto& dsPrPair: o.products()) {
+			// store filter variables for later
+			if (ProductName::isPseudoDataset(dsPrPair.first)) {
+				std::copy(dsPrPair.second.begin(), dsPrPair.second.end(), std::back_inserter(requestedFilterVariables));
+				continue;
+			}
 			auto i = available.find(dsPrPair.first);
 			if (i == available.end()) {
 				throw std::runtime_error("Dataset '" + dsPrPair.first + "' is unavailable");
@@ -479,7 +518,48 @@ cdownload::Driver::collectAllProductsToRead(const std::map<cdownload::DatasetNam
 		}
 	}
 
+	// split filter variables array onto filter name -> variables dictionary
+	std::map<std::string, std::vector<std::string>> variablesPerFilter;
+	std::size_t foundFiltersWithVariables = 0;
+	for (const ProductName& rpn: requestedFilterVariables) {
+		auto rpnPair = Filter::splitParameterName(rpn.shortName());
+		auto i = variablesPerFilter.find(rpnPair.first);
+		if (i == variablesPerFilter.end()) {
+			i = variablesPerFilter.insert({rpnPair.first, std::vector<std::string>()}).first;
+		}
+		i->second.push_back(rpnPair.second);
+	}
+
+	std::set<std::string> filterNames;
+
 	for (const auto& filter: filters) {
+		res.filterVariables[filter.get()] = {};
+		const auto filterName = filter->name();
+		if (filterNames.count(filterName)) {
+			throw std::runtime_error("Two filters with the same name ('" + filterName + "') are not allowed");
+		}
+		filterNames.insert(filterName);
+
+		auto iv = variablesPerFilter.find(filterName);
+		if (iv != variablesPerFilter.end()) {
+			res.filterFields[filter.get()] = filter->variables();
+			const auto& filterVariables = res.filterFields[filter.get()];
+			std::set<std::string> shortNamedFilterVariables;
+			std::transform(filterVariables.begin(), filterVariables.end(),
+			               std::inserter(shortNamedFilterVariables, shortNamedFilterVariables.begin()),
+			               [](const FieldDesc& fd){
+			                   return Filter::splitParameterName(fd.name().shortName()).second;
+			                });
+
+
+			for (const std::string& rsn: iv->second) {
+				if (shortNamedFilterVariables.count(rsn)) {
+					res.filterVariables[filter.get()].push_back(Filter::composeProductName(rsn, filter->name()));
+				}
+			}
+			++foundFiltersWithVariables;
+		}
+
 		for (const ProductName& pr: filter->requiredProducts()) {
 			if (std::find(res.productsToWrite.begin(), res.productsToWrite.end(), pr) == res.productsToWrite.end()) {
 				res.productsForFiltersOnly.push_back(pr);
@@ -487,16 +567,22 @@ cdownload::Driver::collectAllProductsToRead(const std::map<cdownload::DatasetNam
 		}
 	}
 
+	if (foundFiltersWithVariables != variablesPerFilter.size()) {
+		throw std::runtime_error("Not all filter variables have been found");
+	}
+
 	return res;
 }
 
 std::vector<cdownload::DatasetName>
-cdownload::Driver::collectRequireddDatasets(const std::vector<Output>& outputs, const std::vector<std::shared_ptr<Filter> >& filters)
+cdownload::Driver::collectRequiredDatasets(const std::vector<Output>& outputs, const std::vector<std::shared_ptr<Filter> >& filters)
 {
 	std::set<DatasetName> res;
 	for (const Output& o: outputs) {
 		for (const auto& ds: o.datasetNames()) {
-			res.insert(ds);
+			if (!ProductName::isPseudoDataset(ds)) {
+				res.insert(ds);
+			}
 		}
 	}
 

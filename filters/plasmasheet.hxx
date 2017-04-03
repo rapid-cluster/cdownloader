@@ -32,7 +32,7 @@ namespace Filters {
 		using base = RawDataFilter;
 	public:
 		PlasmaSheetModeFilter();
-		bool test(const std::vector<const void *> & line, const DatasetName& ds) const override;
+		bool test(const std::vector<const void *> & line, const DatasetName& ds, std::vector<void*>& variables) const override;
 	private:
 		const Field& cis_mode_;
 // 		const Field& cis_mode_key_;
@@ -42,7 +42,8 @@ namespace Filters {
 		using base = AveragedDataFilter;
 	public:
 		PlasmaSheet();
-		bool test(const std::vector<AveragedVariable>& line) const override;
+
+		bool test(const std::vector<AveragedVariable>& line, std::vector<void*>& variables) const override;
 	private:
 		const Field& H1density_;
 		const Field& H1T_;
@@ -50,6 +51,13 @@ namespace Filters {
 		const Field& O1T_;
 		const Field& BMag_;
 		const Field& sc_pos_xyz_gse_;
+		// variables for export
+		const Field& reportBeta_;
+		const Field& reportPlasmaPressure_;
+		const Field& reportMagneticPressure_;
+		std::size_t reportBetaIndex_;
+		std::size_t reportPlasmaPressureIndex_;
+		std::size_t reportMagneticPressureIndex_;
 	};
 }
 }

@@ -26,7 +26,7 @@
 #include "field.hxx"
 #include "average.hxx"
 
-#include <chrono>
+#include <cassert>
 #include <vector>
 
 namespace cdownload {
@@ -42,24 +42,47 @@ namespace cdownload {
 	public:
 		virtual ~Filter() = default;
 		std::vector<ProductName> requiredProducts() const;
-		virtual void initialize(const std::vector<Field>& availableProducts);
+		virtual void initialize(const std::vector<Field>& availableProducts,
+		                        const std::vector<Field>& filterVariables);
 
 		const std::string name() const {
 			return name_;
 		}
+
+		static std::pair<std::string, std::string> splitParameterName(const std::string& name);
+		static ProductName composeProductName(const std::string& shortName, const std::string& filterName);
+		virtual std::vector<FieldDesc> variables() const;
+
 	protected:
-		Filter(const std::string& name, std::size_t maxFieldsCount = 0);
+		Filter(const std::string& name, std::size_t maxFieldsCount = 0, std::size_t maxVariablesCount = 0);
 
 		const Field& addField(const std::string& productName);
+		const Field& addVariable(const FieldDesc& desc, std::size_t* index);
 		const Field& field(const std::string& name);
 		const std::vector<Field>& availableProducts() const {
 			return availableProducts_;
 		}
 
+		static std::string composeParameterName(const std::string& shortName, const std::string& filterName);
+		ProductName composeProductName(const std::string& shortName) const;
+
+		bool isVariableEnabled(std::size_t index) const {
+			assert(index < enabledVariables_.size());
+			return enabledVariables_[index];
+		}
+
 	private:
-		std::vector<Field> activeFields_; //! for requiredProducts()
+
+		static const DatasetName FAKE_FILTER_DATASET;
+
+		std::vector<Field> requiredFields_; //! for requiredProducts()
 		std::vector<Field> availableProducts_;
+
+		std::vector<Field> availableVariables_;
+		std::vector<bool> enabledVariables_;
+
 		std::size_t maxFieldsCount_;
+		std::size_t maxVariablesCount_;
 		std::string name_;
 	};
 
@@ -69,9 +92,9 @@ namespace cdownload {
 	 */
 	class RawDataFilter: public Filter {
 	public:
-		virtual bool test(const std::vector<const void*>& line, const DatasetName& ds) const = 0;
+		virtual bool test(const std::vector<const void*>& line, const DatasetName& ds, std::vector<void*>& variables) const = 0;
 	protected:
-		RawDataFilter(const std::string& name, std::size_t maxFieldsCount = 0);
+		RawDataFilter(const std::string& name, std::size_t maxFieldsCount = 0, std::size_t maxVariablesCount = 0);
 	};
 
 	/**
@@ -80,9 +103,9 @@ namespace cdownload {
 	 */
 	class AveragedDataFilter: public Filter {
 	public:
-		virtual bool test(const std::vector<AveragedVariable>& line) const = 0;
+		virtual bool test(const std::vector<AveragedVariable>& line, std::vector<void*>& variables) const = 0;
 	protected:
-		AveragedDataFilter(const std::string& name, std::size_t maxFieldsCount = 0);
+		AveragedDataFilter(const std::string& name, std::size_t maxFieldsCount = 0, std::size_t maxVariablesCount = 0);
 	};
 }
 

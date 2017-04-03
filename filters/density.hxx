@@ -30,7 +30,7 @@ namespace Filters {
 		using base = AveragedDataFilter;
 	public:
 		H1DensityFilter(const ProductName& densityProduct, double minDensity);
-		bool test(const std::vector<AveragedVariable>& line) const override;
+		bool test(const std::vector<AveragedVariable>& line, std::vector<void*>& variables) const override;
 	private:
 		double minDensity_;
 		const Field& H1density_;

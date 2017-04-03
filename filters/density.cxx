@@ -29,7 +29,8 @@ cdownload::Filters::H1DensityFilter::H1DensityFilter(const cdownload::ProductNam
 {
 }
 
-bool cdownload::Filters::H1DensityFilter::test(const std::vector<AveragedVariable>& line) const
+bool cdownload::Filters::H1DensityFilter::test(const std::vector<AveragedVariable>& line,
+                                               std::vector<void*>& /*variables*/) const
 {
 	if (H1density_.data(line)[0].mean() < minDensity_) {
 		return false;

@@ -24,15 +24,42 @@
 
 #include "field.hxx"
 
+#include <numeric>
+
 // intentionally intialize numOfCellsToWrite_ to large number
 // that will lead to a crash if Writer::initialize() was not called
-cdownload::Writer::Writer()
-	: writeEpochColumn_{false}
+cdownload::Writer::Writer(bool writeEpochColumn)
+	: writeEpochColumn_{writeEpochColumn}
 {
 }
 
+#if 0
 void cdownload::Writer::initialize(const std::vector<cdownload::Field>& fields, bool writeEpochColumn)
 {
 	fields_ = fields;
 	writeEpochColumn_ = writeEpochColumn;
+}
+
+#endif
+
+cdownload::DirectDataWriter::DirectDataWriter(const Types::Fields& fields, bool writeEpochColumn)
+	: Writer{writeEpochColumn}
+	, fields_{fields}
+{
+}
+
+std::size_t cdownload::DirectDataWriter::numOfCellsToWrite() const
+{
+	return std::accumulate(fields_.begin(), fields_.end(), std::size_t(0),
+			[](std::size_t a, const Types::FieldArray& fa) {
+				return a + fa.size();
+			});
+}
+
+cdownload::AveragedDataWriter::AveragedDataWriter(const AveragedTypes::Fields& averagedFields,
+		                                          const RawTypes::Fields& rawFields, bool writeEpochColumn)
+	: Writer{writeEpochColumn}
+	, averagedFields_{averagedFields}
+	, rawFields_{rawFields}
+{
 }

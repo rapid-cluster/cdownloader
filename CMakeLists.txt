@@ -52,12 +52,12 @@ datasource.hxx
 datasource.cxx
 downloader.cxx
 downloader.hxx
-driver.hxx
-driver.cxx
 expanding.hxx
 expanding.cxx
 field.hxx
 field.cxx
+fieldbuffer.hxx
+fieldbuffer.cxx
 filter.hxx
 filter.cxx
 floatcomparison.hxx
@@ -132,7 +132,12 @@ configure_file(config.h.cmake ${CMAKE_CURRENT_BINARY_DIR}/config.h @ONLY)
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
-add_executable(cdownloader cdownloader-main.cxx)
+add_executable(cdownloader
+	cdownloader-main.cxx
+	driver.hxx
+	driver.cxx
+	program_options_helpers.cxx
+)
 target_link_libraries(cdownloader cdownload Boost::program_options)
 
 install(TARGETS cdownloader RUNTIME DESTINATION bin)

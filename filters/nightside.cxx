@@ -28,7 +28,8 @@ cdownload::Filters::NightSide::NightSide()
 {
 }
 
-bool cdownload::Filters::NightSide::test(const std::vector<const void *>& line, const DatasetName& /*ds*/) const
+bool cdownload::Filters::NightSide::test(const std::vector<const void *>& line, const DatasetName& /*ds*/,
+                                         std::vector<void*>& /*variables*/) const
 {
 	const double* pos = sc_pos_xyz_gse_.data<double>(line);
 	if (pos[0] > 0) {

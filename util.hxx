@@ -37,6 +37,7 @@ namespace cdownload {
 	public:
 		ProductName();
 		ProductName(const std::string& name);
+		ProductName(const DatasetName& datasetName, const std::string& shortVariableName);
 
 		const DatasetName& dataset() const {
 			return datasetName_;
@@ -53,6 +54,32 @@ namespace cdownload {
 		bool empty() const {
 			return variableName_.empty();
 		}
+
+
+		std::string shortName() const; //!< without dataset name
+
+		bool isPseudoDataset() const {
+			return isPseudoDataset(datasetName_);
+		}
+
+		/**
+		 * @brief Checks whether the @ref name points to a special (fake) dataset
+		 *
+		 * These fake datasets are used to get parameters from filters. A name has to star with '$'
+		 * to be treated as special
+		 * @param name name for testing
+		 * @return Result of the test:
+		 * @retval true if the name is special
+		 * @retval false otherwise
+		 */
+		static bool isPseudoDataset(const DatasetName& name);
+
+		/**
+		 * @brief Create special dataset name out of a string
+		 *
+		 * Just prepends '$' to the name
+		 */
+		static DatasetName makePseudoDatasetName(const std::string& name);
 
 	private:
 		std::string variableName_; //!< full, including dataset name
@@ -157,6 +184,8 @@ namespace cdownload {
 	std::vector<ProductName>
 	expandWildcardsCaseSensitive(const std::vector<ProductName>& wildcards,
 	                             const std::vector<ProductName>& avaliable);
+
+
 }
 
 #endif // CDOWNLOADER_UTIL_HXX

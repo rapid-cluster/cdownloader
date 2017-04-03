@@ -31,7 +31,7 @@ namespace Filters {
 		using base = RawDataFilter;
 	public:
 		NightSide();
-		bool test(const std::vector<const void*> & line, const DatasetName & ds) const override;
+		bool test(const std::vector<const void*> & line, const DatasetName & ds, std::vector<void*>& variables) const override;
 	private:
 		const Field& sc_pos_xyz_gse_;
 	};

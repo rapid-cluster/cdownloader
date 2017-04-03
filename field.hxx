@@ -61,6 +61,7 @@ namespace cdownload {
 			return dt_;
 		}
 
+		//! in bytes
 		std::size_t dataSize() const
 		{
 			return dataSize_;
@@ -111,6 +112,18 @@ namespace cdownload {
 
 		template <class T>
 		const T* operator()(const std::vector<const void*>& line) const
+		{
+			return data<T>(line);
+		}
+
+		template <class T>
+		T* data(const std::vector<void*>& line) const
+		{
+			return static_cast<T*>(line[offset_]);
+		}
+
+		template <class T>
+		T* operator()(const std::vector<void*>& line) const
 		{
 			return data<T>(line);
 		}

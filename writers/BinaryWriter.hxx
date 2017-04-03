@@ -37,15 +37,15 @@ namespace cdownload {
 		using base = Writer;
 
 	public:
-		BinaryWriter();
 		~BinaryWriter();
 
-		void initialize(const std::vector<Field>& fields, bool writeEpochColumn) override;
 		void open(const path& fileName) override;
 		bool canAppend(std::size_t& lastWrittenCellNumber) override;
 		void truncate() override;
 
 	protected:
+		BinaryWriter(bool writeEpochColumn, std::size_t stride);
+
 		FILE* outputStream()
 		{
 			return output_.get();
@@ -65,18 +65,24 @@ namespace cdownload {
 	};
 
 	class DirectBinaryWriter: public DirectDataWriter, public BinaryWriter {
+	public:
+		DirectBinaryWriter(const Types::Fields& fields, bool writeEpochColumn);
 	private:
 		void writeHeader() override;
-		void write(std::size_t cellNumber, const datetime & dt, const std::vector<const void *> & line) override;
+		void write(std::size_t cellNumber, const datetime& dt, const Types::Data& lines) override;
 	};
 
 	class AveragedDataBinaryWriter: public AveragedDataWriter, public BinaryWriter {
+	public:
+		AveragedDataBinaryWriter(const AveragedTypes::Fields& averagedFields,
+		                   const RawTypes::Fields& rawFields,
+		                   bool writeEpochColumn);
 
 	private:
-		void initialize(const std::vector<Field>& fields, bool writeEpochColumn) override;
 		void writeHeader() override;
 		void write(std::size_t cellNumber, const datetime& dt,
-		           const std::vector<AveragedVariable>& cells) override;
+		                   const AveragedTypes::Data& averagedCells,
+		                   const RawTypes::Data& rawCells) override;
 	};
 }
 #endif

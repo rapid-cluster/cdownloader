@@ -27,6 +27,7 @@
 
 #include <cstdio>
 #include <fstream>
+#include <numeric>
 #include <type_traits>
 
 #include "config.h"
@@ -46,6 +47,57 @@ extern const std::string MSB_UNSIGNED_INTEGER;
 extern const std::string NATIVE_INT;
 extern const std::string NATIVE_UNSIGNED_INT;
 extern const std::string NATIVE_REAL;
+}
+
+namespace {
+std::size_t fieldsStride(const std::vector<cdownload::Field>& fields, bool averagedFields)
+{
+	std::size_t stride = 0;
+	if (averagedFields) {
+		const std::size_t elementSize = (sizeof(cdownload::AveragingRegister::mean_value_type) +
+					sizeof(cdownload::AveragingRegister::counter_type) +
+					sizeof(cdownload::AveragingRegister::stddev_value_type));
+		for (const cdownload::FieldDesc& f: fields) {
+			std::size_t fieldSize = elementSize * f.elementCount();
+			stride += fieldSize;
+		}
+	} else {
+		for (const cdownload::FieldDesc& f: fields) {
+			std::size_t fieldSize = f.dataSize() * f.elementCount();
+			stride += fieldSize;
+		}
+	}
+	return stride;
+}
+
+// std::size_t stride(const std::vector<cdownload::Field>& fields, bool writeEpochColumn, bool averagedFields)
+// {
+// 	std::size_t stride = sizeof(std::size_t) + sizeof(decltype(cdownload::timeduration().seconds()));
+// 	if (writeEpochColumn) {
+// 		stride += sizeof(decltype(cdownload::timeduration().milliseconds()));
+// 	}
+// 	return stride + fieldsStride(fields, averagedFields);
+// }
+
+// std::size_t stride(const std::vector<cdownload::Field>& averagedFields,
+// 		                   const std::vector<cdownload::Field>& rawFields,
+// 		                   bool writeEpochColumn)
+// {
+// 	return stride(averagedFields, writeEpochColumn, true) + fieldsStride(rawFields, false);
+// }
+
+std::size_t stride(const cdownload::DirectBinaryWriter::Types::Fields& fields, bool writeEpochColumn, bool averagedFields)
+{
+	std::size_t stride = std::accumulate(fields.begin(), fields.end(), std::size_t(0),
+					[averagedFields](std::size_t a, const cdownload::DirectBinaryWriter::Types::FieldArray& ar) {
+						return a + fieldsStride(ar, averagedFields);
+					});
+	if (writeEpochColumn) {
+		stride += sizeof(decltype(cdownload::timeduration().milliseconds()));
+	}
+	return stride;
+}
+
 }
 
 const std::string datatypenaming::IEEE_REAL = std::string("IEEE_REAL");
@@ -75,7 +127,11 @@ void cdownload::BinaryWriter::FileClose::operator()(::FILE* f) const
 	std::fclose(f);
 }
 
-cdownload::BinaryWriter::BinaryWriter() = default;
+cdownload::BinaryWriter::BinaryWriter(bool writeEpochColumn, std::size_t stride)
+	: Writer{writeEpochColumn}
+	, stride_{stride}
+{
+}
 
 cdownload::BinaryWriter::~BinaryWriter() = default;
 
@@ -91,19 +147,6 @@ void cdownload::BinaryWriter::truncate()
 	output_.reset(std::fopen(outputFileName_.c_str(), "w+"));
 }
 
-void cdownload::BinaryWriter::initialize(const std::vector<Field>& fields, bool writeEpochColumn)
-{
-	stride_ = sizeof(std::size_t) + sizeof(decltype(timeduration().seconds()));
-		const std::size_t elementSize = (sizeof(AveragingRegister::mean_value_type) +
-				sizeof(AveragingRegister::counter_type) +
-				sizeof(AveragingRegister::stddev_value_type));
-	for (const FieldDesc& f: fields) {
-		std::size_t fieldSize = elementSize * f.elementCount();
-		stride_ += fieldSize;
-	}
-	base::initialize(fields, writeEpochColumn);
-}
-
 bool cdownload::BinaryWriter::canAppend(std::size_t& lastWrittenCellNumber)
 {
 	auto curPos = std::ftell(output_.get());
@@ -117,9 +160,20 @@ bool cdownload::BinaryWriter::canAppend(std::size_t& lastWrittenCellNumber)
 	return false;
 }
 
-void cdownload::AveragedDataBinaryWriter::write(std::size_t cellNumber, const datetime& dt,
-                                   const std::vector<AveragedVariable>& cells)
+cdownload::DirectBinaryWriter::DirectBinaryWriter(const Types::Fields& fields, bool writeEpochColumn)
+	: Writer(writeEpochColumn)
+	, DirectDataWriter(fields, writeEpochColumn)
+	, BinaryWriter(writeEpochColumn, stride(fields, writeEpochColumn, false))
 {
+}
+
+void cdownload::AveragedDataBinaryWriter::write(std::size_t cellNumber, const datetime& dt,
+		                   const AveragedTypes::Data& averagedCells,
+		                   const RawTypes::Data& rawCells)
+{
+
+	assert(averagedCells.size() == averagedFields().size());
+	assert(rawCells.size() == rawFields().size());
 
 	std::fwrite(&cellNumber, sizeof(std::size_t), 1, outputStream());
 
@@ -137,11 +191,25 @@ void cdownload::AveragedDataBinaryWriter::write(std::size_t cellNumber, const da
 		std::size_t count;
 		double stdDev;
 	};
-	for (const Field& f: fields()) {
-		const AveragedVariable& av = f.data(cells);
-		for (const AveragingRegister& ac: av) {
-			CellValues cv {ac.mean(), ac.count(),  ac.stdDev()};
-			std::fwrite(&cv, sizeof(cv), 1, outputStream());
+
+	for (std::size_t i = 0; i < averagedFields().size(); ++i) {
+		const auto& fields = averagedFields()[i];
+		const auto& cells = averagedCells[i];
+		for (const Field& f: fields) {
+			const AveragedVariable& av = f.data(cells);
+			for (const AveragingRegister& ac: av) {
+				CellValues cv {ac.mean(), ac.count(),  ac.stdDev()};
+				std::fwrite(&cv, sizeof(cv), 1, outputStream());
+			}
+		}
+	}
+
+	for (std::size_t i = 0; i < rawFields().size(); ++i) {
+		const auto& fields = rawFields()[i];
+		const auto& cells = rawCells[i];
+		for (const Field& f: fields) {
+			const double* data = f.data<double>(cells);
+			std::fwrite(data, sizeof(double), f.elementCount(), outputStream());
 		}
 	}
 }
@@ -200,8 +268,16 @@ void cdownload::AveragedDataBinaryWriter::writeHeader()
 		datatypenaming::NATIVE_REAL << sizeof(decltype(timeduration().milliseconds())) * CHAR_BIT << "]>";
 
 	}
-	for (const FieldDesc& f: fields()) {
-		printAveragedFieldHeader(headerFile, f.name().name(), f.elementCount());
+	for (const auto& fields: averagedFields()) {
+		for (const FieldDesc& f: fields) {
+			printAveragedFieldHeader(headerFile, f.name().name(), f.elementCount());
+		}
+	}
+
+	for (const auto& fields: rawFields()) {
+		for (const FieldDesc& f: fields) {
+			printRawFieldHeader(headerFile, f.name().name(), f.elementCount());
+		}
 	}
 	headerFile << std::endl;
 }
@@ -222,27 +298,35 @@ void cdownload::DirectBinaryWriter::writeHeader()
 		datatypenaming::NATIVE_REAL << sizeof(decltype(timeduration().milliseconds())) * CHAR_BIT << "]>";
 
 	}
-	for (const FieldDesc& f: fields()) {
-		printRawFieldHeader(headerFile, f.name().name(), f.elementCount());
+	for (const auto& fieldArray: fields()) {
+		for (const FieldDesc& f: fieldArray) {
+			printRawFieldHeader(headerFile, f.name().name(), f.elementCount());
+		}
 	}
 	headerFile << std::endl;
 }
 
-void cdownload::AveragedDataBinaryWriter::initialize(const std::vector<Field>& fields, bool writeEpochColumn)
+cdownload::AveragedDataBinaryWriter::AveragedDataBinaryWriter(const AveragedTypes::Fields& averagedFields,
+		                   const RawTypes::Fields& rawFields,
+		                   bool writeEpochColumn)
+	: Writer(writeEpochColumn)
+	, AveragedDataWriter(averagedFields, rawFields, writeEpochColumn)
+	, BinaryWriter(writeEpochColumn, stride(averagedFields, writeEpochColumn, true) + stride(rawFields, false, false))
 {
 	// we support only double values so far
-	for (const Field& f: fields) {
-		if (f.dataType() != FieldDesc::DataType::Real ||
-			f.dataSize() != sizeof(double)) {
-			throw std::runtime_error("Only double columns are supported");
+	for (const auto& fields: averagedFields) {
+		for (const Field& f: fields) {
+			if (f.dataType() != FieldDesc::DataType::Real ||
+				f.dataSize() != sizeof(double)) {
+				throw std::runtime_error("Only double columns are supported");
+			}
 		}
 	}
-	BinaryWriter::initialize(fields, writeEpochColumn);
 }
 
-
-void cdownload::DirectBinaryWriter::write(std::size_t cellNumber, const datetime& dt, const std::vector<const void *>& line)
+void cdownload::DirectBinaryWriter::write(std::size_t cellNumber, const datetime& dt, const Types::Data& lines)
 {
+	assert(lines.size() == fields().size());
 	std::fwrite(&cellNumber, sizeof(std::size_t), 1, outputStream());
 
 	const auto dtSeconds = dt.seconds();
@@ -254,8 +338,12 @@ void cdownload::DirectBinaryWriter::write(std::size_t cellNumber, const datetime
 		std::fwrite(&epoch, sizeof(epoch), 1, outputStream());
 	}
 
-	for (const Field& f: fields()) {
-		const double* data = f.data<double>(line);
-		std::fwrite(data, sizeof(double), f.elementCount(), outputStream());
+	for (std::size_t i = 0; i < lines.size(); ++i) {
+		const auto& fieldsArray = fields()[i];
+		const auto& line = lines[i];
+		for (const Field& f: fieldsArray) {
+			const double* data = f.data<double>(line);
+			std::fwrite(data, sizeof(double), f.elementCount(), outputStream());
+		}
 	}
 }

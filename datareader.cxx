@@ -273,7 +273,7 @@ cdownload::AveragingDataReader::readNextCell(const datetime& cellStart, cdownloa
 		bool filtersPassed = true;
 		// the record was read successfully and belongs to the current output cell -> test by filters
 		for (const auto& f: ds.filters) {
-			if (!f->test(bufferPointers(), ds.datasetName)) {
+			if (!f->test(bufferPointers(), ds.datasetName, filterVariables())) {
 				filtersPassed = false;
 #ifdef DEBUG_LOG_EVERY_CELL
 				BOOST_LOG_TRIVIAL(trace) << "\t Rejected by " << f->name() << " filter";
@@ -439,7 +439,7 @@ std::pair<bool,cdownload::datetime> cdownload::DirectDataReader::readNextCell()
 		bool filtersPassed = true;
 		// the record was read successfully and belongs to the current output cell -> test by filters
 		for (const auto& f: dsContext_->filters) {
-			if (!f->test(bufferPointers(), dsContext_->datasetName)) {
+			if (!f->test(bufferPointers(), dsContext_->datasetName, filterVariables())) {
 				filtersPassed = false;
 #ifdef DEBUG_LOG_EVERY_CELL
 				BOOST_LOG_TRIVIAL(trace) << "\t Rejected by " << f->name() << " filter";

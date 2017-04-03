@@ -36,11 +36,12 @@ namespace cdownload {
 	 */
 	class ASCIIWriter: public virtual Writer {
 		using base = Writer;
+	protected:
+		ASCIIWriter(bool writeEpochColumn);
 	public:
-		ASCIIWriter();
+
 		~ASCIIWriter();
 
-		void initialize(const std::vector<Field>& fields, bool writeEpochColumn) override;
 		void open(const path & fileName) override;
 		bool canAppend(std::size_t& lastWrittenCellNumber) override;
 		void truncate() override;
@@ -54,17 +55,24 @@ namespace cdownload {
 	};
 
 	class DirectASCIIWriter: public DirectDataWriter, public ASCIIWriter {
-	private:
-		void writeHeader() override;
-		void write(std::size_t cellNumber, const datetime& dt, const std::vector<const void*>& line) override;
-	};
-
-	class AveragedDataASCIIWriter: public AveragedDataWriter, public ASCIIWriter {
-
+	public:
+		DirectASCIIWriter(const Types::Fields& fields, bool writeEpochColumn);
 	private:
 		void writeHeader() override;
 		void write(std::size_t cellNumber, const datetime& dt,
-		           const std::vector<AveragedVariable>& cells) override;
+		                   const Types::Data& lines) override;
+	};
+
+	class AveragedDataASCIIWriter: public AveragedDataWriter, public ASCIIWriter {
+	public:
+		AveragedDataASCIIWriter(const AveragedTypes::Fields& averagedFields,
+		                   const RawTypes::Fields& rawFields,
+		                   bool writeEpochColumn);
+	private:
+		void writeHeader() override;
+		void write(std::size_t cellNumber, const datetime& dt,
+		                   const AveragedTypes::Data& averagedCells,
+		                   const RawTypes::Data& rawCells) override;
 	};
 
 

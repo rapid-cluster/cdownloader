@@ -112,6 +112,10 @@ namespace cdownload {
 			return bufferPointers_;
 		}
 
+		std::vector<void*>& filterVariables() {
+			return filterVariables_;
+		}
+
 		std::vector<Field>& fields() {
 			return fields_;
 		}
@@ -129,6 +133,7 @@ namespace cdownload {
 		std::map<DatasetName, DataSetReadingContext> readers_;
 		std::vector<std::shared_ptr<RawDataFilter> > filters_;
 		std::vector<const void*> bufferPointers_; // this is for filters, i.e. without time_tags fields
+		std::vector<void*> filterVariables_;
 		std::vector<Field> fields_;
 
 		ReaderState state_;

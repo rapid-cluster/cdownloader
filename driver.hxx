@@ -32,6 +32,7 @@ namespace CDF {
 }
 
 	class DataDownloader;
+	class FieldDesc;
 	class Output;
 	class Writer;
 	class Field;
@@ -56,23 +57,28 @@ namespace CDF {
 
 		void addBlankDataFilters(const std::vector<Field>& fields, std::vector<std::shared_ptr<RawDataFilter> >& rawDataFilters);
 
-		void initializeFilters(const std::vector<Field>& fields,
+		void initializeFilters(const std::vector<Field>& fields, const std::vector<Field>& filterVariables,
 		                       std::vector<std::shared_ptr<RawDataFilter> >& rawDataFilters,
 		                       std::vector<std::shared_ptr<AveragedDataFilter> >& averagedDataFilters);
 
 		struct ProductsToRead {
-			std::vector<ProductName> productsToWrite;
-			std::vector<ProductName>productsForFiltersOnly;
+			using ProductNameArray = std::vector<ProductName>;
+			ProductNameArray productsToWrite;
+			ProductNameArray productsForFiltersOnly;
+			std::map<const Filter*, ProductNameArray> filterVariables;
+			std::map<const Filter*, std::vector<FieldDesc>> filterFields;
 		};
 
 		static ProductsToRead collectAllProductsToRead(const std::map<cdownload::DatasetName, CDF::Info>& available,
 		                                               const std::vector<Output>& outputs,
 		                                               const std::vector<std::shared_ptr<Filter> >& filters);
 
-		static std::vector<DatasetName> collectRequireddDatasets(const std::vector<Output>& outputs,
+		static std::vector<DatasetName> collectRequiredDatasets(const std::vector<Output>& outputs,
 		                                                         const std::vector<std::shared_ptr<Filter> >& filters);
 
-		std::unique_ptr<Writer> createWriterForOutput(const Output& output) const;
+		std::unique_ptr<Writer> createWriterForOutput(const Output& output,
+		                                      const std::vector<Field>& dataFields, const std::vector<Field>& filterVariables) const;
+
 		Parameters params_;
 		std::vector<DatasetName> datasetsToLoad_;
 		std::vector<ProductName> productsToRead_;

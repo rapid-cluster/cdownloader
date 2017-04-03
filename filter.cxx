@@ -25,50 +25,109 @@
 #include <algorithm>
 #include <limits>
 
-cdownload::Filter::Filter(const std::string& name, std::size_t maxFieldsCount)
+const cdownload::DatasetName cdownload::Filter::FAKE_FILTER_DATASET = "FILTER";
+
+cdownload::Filter::Filter(const std::string& name, std::size_t maxFieldsCount, std::size_t maxVariablesCount)
 	: maxFieldsCount_{maxFieldsCount}
+	, maxVariablesCount_{maxVariablesCount}
 	, name_{name}
 {
-	activeFields_.reserve(maxFieldsCount_);
+	requiredFields_.reserve(maxFieldsCount_);
+	availableVariables_.reserve(maxVariablesCount_);
+	enabledVariables_.reserve(maxVariablesCount_);
 }
 
+std::vector<cdownload::FieldDesc> cdownload::Filter::variables() const
+{
+	std::vector<cdownload::FieldDesc> res;
+	res.reserve(availableVariables_.size());
+	std::transform(availableVariables_.begin(), availableVariables_.end(), std::back_inserter(res),
+		[](const Field& f) {return f;});
+	return res;
+}
 
 std::vector<cdownload::ProductName> cdownload::Filter::requiredProducts() const {
 	std::vector<ProductName> res;
-	std::transform(activeFields_.begin(), activeFields_.end(), std::back_inserter(res),
+	std::transform(requiredFields_.begin(), requiredFields_.end(), std::back_inserter(res),
 	               [](const Field& f) {return f.name();});
 	return res;
 }
 
-void cdownload::Filter::initialize(const std::vector<Field>& availableProducts) {
+void cdownload::Filter::initialize(const std::vector<Field>& availableProducts, const std::vector<Field>& filterVariables) {
 	availableProducts_ = availableProducts;
+// 	requestedFilterVariables_ = filterVariables;
+
 	for (std::size_t i = 0; i< availableProducts.size(); ++i) {
 		const Field& af = availableProducts[i];
-		for (Field& f: activeFields_) {
+		for (Field& f: requiredFields_) {
 			if (f.name() == af.name()) {
 				f = af;
 			}
 		}
 	}
-	for (const Field& f: activeFields_) {
+	for (const Field& f: requiredFields_) {
 		if (f.offset() == static_cast<std::size_t>(-1)) {
 			throw std::logic_error("Field '" + f.name().name() + "' offset is unknown");
 		}
 	}
 
+	for (std::size_t i = 0; i< filterVariables.size(); ++i) {
+		const Field& vf = filterVariables[i];
+		for (std::size_t j = 0; j < availableVariables_.size(); ++j) {
+			if (vf.name() == availableVariables_[j].name()) {
+				availableVariables_[j] = vf;
+				enabledVariables_[j] = true;
+				break;
+			}
+		}
+	}
+}
+
+cdownload::ProductName cdownload::Filter::composeProductName(const std::string& shortName, const std::string& filterName)
+{
+	return ProductName(ProductName::makePseudoDatasetName(FAKE_FILTER_DATASET),
+	                   composeParameterName(shortName,filterName ));
+}
+
+std::string cdownload::Filter::composeParameterName(const std::string& shortName, const std::string& filterName)
+{
+	return filterName + '_' + shortName;
+}
+
+std::pair<std::string, std::string> cdownload::Filter::splitParameterName(const std::string& name)
+{
+	auto sepPos = name.find('_');
+	if (sepPos == std::string::npos || sepPos == 0 || sepPos + 2 >= name.size()) {
+		throw std::runtime_error("Incorrect name");
+	}
+	return {name.substr(0, sepPos), name.substr(sepPos+1)};
+}
+
+cdownload::ProductName cdownload::Filter::composeProductName(const std::string& shortName) const
+{
+	return composeProductName(shortName, name());
 }
 
 const cdownload::Field& cdownload::Filter::addField(const std::string& productName) {
-	activeFields_.push_back(Field(FieldDesc(ProductName(productName), std::numeric_limits<double>::quiet_NaN()),
+	requiredFields_.push_back(Field(FieldDesc(ProductName(productName), std::numeric_limits<double>::quiet_NaN()),
 	                              static_cast<std::size_t>(-1)));
-	if (activeFields_.size() > maxFieldsCount_) {
+	if (requiredFields_.size() > maxFieldsCount_) {
 		throw std::logic_error("Relocation in fields array makes all field references invalid");
 	}
-	return activeFields_.back();
+	return requiredFields_.back();
 }
 
+const cdownload::Field& cdownload::Filter::addVariable(const cdownload::FieldDesc& desc, std::size_t* index)
+{
+	*index = availableVariables_.size();
+	availableVariables_.push_back(Field(desc, static_cast<std::size_t>(-1)));
+	enabledVariables_.push_back(false);
+	return availableVariables_.back();
+}
+
+
 const cdownload::Field& cdownload::Filter::field(const std::string& name) {
-	for (const Field& f: activeFields_) {
+	for (const Field& f: requiredFields_) {
 		if (f.name() == name) {
 			return f;
 		}
@@ -76,12 +135,12 @@ const cdownload::Field& cdownload::Filter::field(const std::string& name) {
 	throw std::runtime_error("There is no field with name '" + name + "' in this filter");
 }
 
-cdownload::RawDataFilter::RawDataFilter(const std::string& name, std::size_t maxFieldsCount)
-	: Filter(name, maxFieldsCount)
+cdownload::RawDataFilter::RawDataFilter(const std::string& name, std::size_t maxFieldsCount, std::size_t maxVariablesCount)
+	: Filter(name, maxFieldsCount, maxVariablesCount)
 {
 }
 
-cdownload::AveragedDataFilter::AveragedDataFilter(const std::string& name, std::size_t maxFieldsCount)
-	: Filter(name, maxFieldsCount)
+cdownload::AveragedDataFilter::AveragedDataFilter(const std::string& name, std::size_t maxFieldsCount, std::size_t maxVariablesCount)
+	: Filter(name, maxFieldsCount, maxVariablesCount)
 {
 }

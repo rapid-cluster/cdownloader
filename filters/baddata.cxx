@@ -13,7 +13,8 @@ cdownload::Filters::BadDataFilter::BadDataFilter()
 {
 }
 
-bool cdownload::Filters::BadDataFilter::test(const std::vector<const void*>& line, const DatasetName& ds) const
+bool cdownload::Filters::BadDataFilter::test(const std::vector<const void*>& line, const DatasetName& ds,
+                                             std::vector<void*>& /*variables*/) const
 {
 	for (const Field& f: availableProducts()) {
 		if (f.name().dataset() == ds) {

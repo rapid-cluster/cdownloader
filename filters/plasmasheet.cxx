@@ -64,9 +64,10 @@ cdownload::Filters::PlasmaSheetModeFilter::PlasmaSheetModeFilter()
 {
 }
 
-bool cdownload::Filters::PlasmaSheetModeFilter::test(const std::vector<const void*>& line, const DatasetName& /*ds*/) const
+bool cdownload::Filters::PlasmaSheetModeFilter::test(const std::vector<const void*>& line, const DatasetName& /*ds*/,
+                                                     std::vector<void*>& /*variables*/) const
 {
-	// CIS_mode=13
+	// CIS_mode is 13 or 8
 	const int* cis_mode = cis_mode_.data<int>(line);
 	if (*cis_mode != 13 && *cis_mode != 8) {
 		return false;
@@ -76,13 +77,20 @@ bool cdownload::Filters::PlasmaSheetModeFilter::test(const std::vector<const voi
 }
 
 cdownload::Filters::PlasmaSheet::PlasmaSheet()
-	: base("PlasmaSheet", 7)
+	: base("PlasmaSheet", 7, 3)
 	, H1density_(addField("density__C4_CP_CIS-CODIF_HS_H1_MOMENTS"))
 	, H1T_(addField("T__C4_CP_CIS-CODIF_HS_H1_MOMENTS"))
 	, O1density_(addField("density__C4_CP_CIS-CODIF_HS_O1_MOMENTS"))
 	, O1T_(addField("T__C4_CP_CIS-CODIF_HS_O1_MOMENTS"))
 	, BMag_(addField("B_mag__C4_CP_FGM_SPIN"))
 	, sc_pos_xyz_gse_(addField("sc_pos_xyz_gse__C4_CP_FGM_SPIN"))
+	, reportBeta_{addVariable(FieldDesc(composeProductName("beta"), -1., FieldDesc::DataType::Real, sizeof(double), 1), &reportBetaIndex_)}
+	, reportPlasmaPressure_{addVariable(
+		FieldDesc(composeProductName("PlasmaPressure"), -1., FieldDesc::DataType::Real, sizeof(double), 1),
+		&reportPlasmaPressureIndex_)}
+	, reportMagneticPressure_{addVariable(
+		FieldDesc(composeProductName("MagneticPressure"), -1., FieldDesc::DataType::Real, sizeof(double), 1),
+		&reportMagneticPressureIndex_)}
 {
 }
 
@@ -109,7 +117,7 @@ namespace {
 	}
 }
 
-bool cdownload::Filters::PlasmaSheet::test(const std::vector<AveragedVariable>& line) const
+bool cdownload::Filters::PlasmaSheet::test(const std::vector<AveragedVariable>& line, std::vector<void*>& variables) const
 {
 	// check for R > 4 R_E
 	const AveragedVariable& pos = sc_pos_xyz_gse_.data(line);
@@ -131,8 +139,21 @@ bool cdownload::Filters::PlasmaSheet::test(const std::vector<AveragedVariable>& 
 
 	const double beta = totalPlasma / magnetic;
 
+	if (isVariableEnabled(reportBetaIndex_)) {
+		*(reportBeta_.data<double>(variables)) = beta;
+	}
+
+	if (isVariableEnabled(reportPlasmaPressureIndex_)) {
+		*(reportPlasmaPressure_.data<double>(variables)) = totalPlasma;
+	}
+
+	if (isVariableEnabled(reportMagneticPressureIndex_)) {
+		*(reportMagneticPressure_.data<double>(variables)) = magnetic;
+	}
+
 	if (beta < 0.2 || beta > 10) {
 		return false;
 	}
 	return true;
 }
+

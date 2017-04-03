@@ -30,6 +30,16 @@
 namespace cdownload {
 
 	class Field;
+
+	template <class FieldType>
+	struct FieldArrayTypes {
+		using FieldArray = std::vector<Field>;
+		using DataArray = std::vector<FieldType>;
+
+		using Fields = std::vector<FieldArray>;
+		using Data = std::vector<DataArray>;
+	};
+
 	/**
 	 * @brief Basic interface class for writing result files
 	 *
@@ -40,13 +50,6 @@ namespace cdownload {
 
 		virtual ~Writer() = default;
 
-		/**
-		 * @brief Provides this instance with a data record structure
-		 *
-		 * @param fields List of fields in the data record array. This list contains the same
-		 * fields (and in the same order) as they need to be written into the output file.
-		 */
-		virtual void initialize(const std::vector<Field>& fields, bool writeEpochColumn);
 		virtual void writeHeader() = 0;
 
 		virtual void open(const path& fileName) = 0;
@@ -54,28 +57,20 @@ namespace cdownload {
 		virtual void truncate() = 0;
 
 	protected:
-		Writer();
-		std::size_t numOfCellsToWrite() const
-		{
-			return fields_.size();
-		}
+		Writer(bool writeEpochColumn);
 
-		const std::vector<Field>& fields() const
+		bool writeEpochColumn() const
 		{
-			return fields_;
-		}
-
-		bool writeEpochColumn() const {
 			return writeEpochColumn_;
 		}
 
 	private:
 		bool writeEpochColumn_;
-		std::vector<Field> fields_;
 	};
 
-	class DirectDataWriter: public virtual Writer {
+	class DirectDataWriter: public virtual Writer{
 	public:
+		using Types = FieldArrayTypes<const void*>;
 		/**
 		 * @brief Writes a data record into the output stream
 		 *
@@ -84,11 +79,33 @@ namespace cdownload {
 		 * @param line record data
 		 */
 		virtual void write(std::size_t cellNumber, const datetime& dt,
-		                   const std::vector<const void*>& line) = 0;
+		                   const Types::Data& lines) = 0;
+
+	protected:
+		/*!
+		 * @brief Provides this instance with a data record structure
+		 *
+		 * @param fields List of fields in the data record array. This list contains the same
+		 * fields (and in the same order) as they need to be written into the output file.
+		 */
+		DirectDataWriter(const Types::Fields& fields, bool writeEpochColumn);
+		std::size_t numOfCellsToWrite() const;
+
+		const Types::Fields& fields() const
+		{
+			return fields_;
+		}
+
+	private:
+		const Types::Fields fields_;
 	};
 
 	class AveragedDataWriter: public virtual Writer {
 	public:
+
+		using AveragedTypes = FieldArrayTypes<AveragedVariable>;
+		using RawTypes = FieldArrayTypes<const void*>;
+
 		/**
 		 * @brief Writes a data record into the output stream
 		 *
@@ -97,7 +114,27 @@ namespace cdownload {
 		 * @param cells record data
 		 */
 		virtual void write(std::size_t cellNumber, const datetime& dt,
-		                   const std::vector<AveragedVariable>& cells) = 0;
+		                   const AveragedTypes::Data& averagedCells,
+		                   const RawTypes::Data& rawCells) = 0;
+
+	protected:
+		AveragedDataWriter(const AveragedTypes::Fields& averagedFields,
+		                   const RawTypes::Fields& rawFields,
+		                   bool writeEpochColumn);
+
+		const AveragedTypes::Fields& averagedFields() const
+		{
+			return averagedFields_;
+		}
+
+		const RawTypes::Fields& rawFields() const
+		{
+			return rawFields_;
+		}
+
+	private:
+		const AveragedTypes::Fields averagedFields_;
+		const RawTypes::Fields rawFields_;
 	};
 }
 

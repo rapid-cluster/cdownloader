@@ -29,7 +29,8 @@ cdownload::Filters::QualityFilter::QualityFilter(const cdownload::ProductName& p
 {
 }
 
-bool cdownload::Filters::QualityFilter::test(const std::vector<const void *>& line, const DatasetName& /*ds*/) const
+bool cdownload::Filters::QualityFilter::test(const std::vector<const void *>& line, const DatasetName& /*ds*/,
+                                             std::vector<void*>& /*variables*/) const
 {
 	const int* quality_val = field_.data<int>(line);
 	if (*quality_val < minQuality_) {

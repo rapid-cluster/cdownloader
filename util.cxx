@@ -42,6 +42,10 @@
 #include <regex>
 #endif
 
+namespace {
+	const char SPECIAL_DATASET_NAME_PREFIX = '$';
+}
+
 cdownload::ProductName::ProductName()
 	: variableName_()
 	, datasetName_()
@@ -58,6 +62,34 @@ cdownload::ProductName::ProductName(const std::string& name)
 	}
 //  variableName_ = name.substr(0, delimPos);
 	datasetName_ = name.substr(delimPos + 2);
+}
+
+cdownload::ProductName::ProductName(const DatasetName& datasetName, const std::string& shortVariableName)
+	: variableName_{shortVariableName + delimiter + datasetName}
+	, datasetName_{datasetName}
+{
+}
+
+std::string cdownload::ProductName::shortName() const
+{
+	auto delimPos = variableName_.find(delimiter);
+	if (delimPos == std::string::npos ||
+	    delimPos + 3 > variableName_.size()) {
+		throw std::runtime_error("product name '" + variableName_ + "' is malformed");
+	}
+//  variableName_ = name.substr(0, delimPos);
+	return  variableName_.substr(0, delimPos);
+
+}
+
+bool cdownload::ProductName::isPseudoDataset(const DatasetName& name)
+{
+	return name.front() == SPECIAL_DATASET_NAME_PREFIX;
+}
+
+cdownload::DatasetName cdownload::ProductName::makePseudoDatasetName(const std::string& name)
+{
+	return SPECIAL_DATASET_NAME_PREFIX + name;
 }
 
 std::ostream& cdownload::operator<<(std::ostream& os, const cdownload::ProductName& pr)
