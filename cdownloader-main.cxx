@@ -57,7 +57,7 @@ namespace posix_time {
 }
 }
 
-void assureDirectoryExistsAndWritable(const cdownload::path& p, const std::string& dirNameForUser)
+void assureDirectoryExistsAndIsWritable(const cdownload::path& p, const std::string& dirNameForUser)
 {
 	if (!boost::filesystem::exists(p)) {
 		throw std::runtime_error(dirNameForUser + " directory '" + p.string() + "' does not exist");
@@ -245,8 +245,8 @@ int main(int ac, char** av)
 	}
 
 	try {
-		assureDirectoryExistsAndWritable(parameters.outputDir(), "Output");
-		assureDirectoryExistsAndWritable(parameters.workDir(), "Working");
+		assureDirectoryExistsAndIsWritable(parameters.outputDir(), "Output");
+		assureDirectoryExistsAndIsWritable(parameters.workDir(), "Working");
 	} catch (std::exception& ex) {
 		std::cerr << ex.what() << std::endl;
 		return 2;
@@ -278,7 +278,7 @@ int main(int ac, char** av)
 	if (vm.count("log-file")) {
 		path logFile = vm["log-file"].as<path>();
 		if (!logFile.parent_path().empty()) {
-			assureDirectoryExistsAndWritable(logFile.parent_path(), "Log file directory");
+			assureDirectoryExistsAndIsWritable(logFile.parent_path(), "Log file directory");
 		}
 
 		logging::add_file_log
