@@ -33,7 +33,6 @@ cdownload::FieldBuffer::FieldBuffer(const cdownload::FieldDesc& desc)
 {
 }
 
-
 cdownload::FieldBuffer::FieldBuffer(const std::vector<FieldDesc>& fields, std::size_t alignment)
 	: alignmentSize_{alignment}
 	, buffer_(fieldBufferSize(fields, alignment), 0)
@@ -107,7 +106,7 @@ std::vector<cdownload::Field> cdownload::FieldBuffer::fields() const
 	std::vector<Field> res;
 	res.reserve(offsets_.size());
 	for (std::size_t i = 0; i < offsets_.size(); ++i) {
-		res.emplace_back(descs_[i], offset(i));
+		res.emplace_back(descs_[i], i);
 	}
 	return res;
 }

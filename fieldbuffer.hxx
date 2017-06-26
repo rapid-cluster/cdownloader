@@ -27,7 +27,6 @@
 
 #include <memory>
 
-
 namespace cdownload {
 
 	class FieldBuffer {
@@ -39,8 +38,14 @@ namespace cdownload {
 			return offsets_.size();
 		}
 
+		std::vector<Field> fields() const;
+
+		std::vector<void*> writeBuffers();
+		std::vector<const void*> readBuffers() const;
+
+	private:
 		std::size_t offset(std::size_t index) const {
-			return alignmentSize_*offsets_[index];
+			return offsets_[index];
 		}
 
 		void* operator[](std::size_t index) {
@@ -51,12 +56,6 @@ namespace cdownload {
 			return &buffer_[offset(index)];
 		}
 
-		std::vector<Field> fields() const;
-
-		std::vector<void*> writeBuffers();
-		std::vector<const void*> readBuffers() const;
-
-	private:
 		static std::size_t fieldBufferSize(const FieldDesc& desc);
 		static std::size_t fieldBufferSize(const std::vector<FieldDesc>& fields, std::size_t alignment);
 		static std::vector<std::size_t> fieldBufferOffsets(const std::vector<FieldDesc>& fields, std::size_t alignment);
