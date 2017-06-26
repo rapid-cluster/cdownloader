@@ -65,6 +65,8 @@ namespace cdownload {
 		std::vector<std::string> datasetNames() const;
 
 		const std::vector<ProductName>& productsForDataset(const std::string& dataset) const;
+		const std::vector<ProductName> productsForDatasetOrDefault(const std::string& dataset,
+																   const std::vector<ProductName>& defaultValue) const;
 
 	private:
 		std::string name_;

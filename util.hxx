@@ -24,6 +24,7 @@
 #define CDOWNLOADER_UTIL_HXX
 
 #include "commonDefinitions.hxx"
+#include <algorithm>
 #include <map>
 #include <vector>
 #include <iosfwd>
@@ -186,6 +187,15 @@ namespace cdownload {
 	                             const std::vector<ProductName>& avaliable);
 
 
+	template <class Container, class Value>
+	bool contains(const Container& c, const Value& v) {
+		return std::find(c.begin(), c.end(), v) != c.end();
+	}
+
+	template <class Container, class Predicate>
+	bool contains_if(const Container& c, Predicate p) {
+		return std::find_if(c.begin(), c.end(), p) != c.end();
+	}
 }
 
 #endif // CDOWNLOADER_UTIL_HXX

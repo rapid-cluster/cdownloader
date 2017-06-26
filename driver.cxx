@@ -399,22 +399,35 @@ cdownload::Driver::createWriterForOutput(const cdownload::Output& output,
 {
 
 // 	fieldsForWriters[o.name()], params_.writeEpoch()
+	std::vector<Field> fieldsForWriters;
+	std::vector<Field> filterVariableForWriter;
+
+	std::copy_if(dataFields.begin(), dataFields.end(), std::back_inserter(fieldsForWriters),
+				 [&](const Field& f) {
+					 return contains(output.productsForDatasetOrDefault(f.name().dataset(), {}), f.name());
+				 });
+
+	std::copy_if(filterVariables.begin(), filterVariables.end(), std::back_inserter(filterVariableForWriter),
+				 [&](const Field& f) {
+					 return contains(output.productsForDatasetOrDefault(f.name().dataset(), {}), f.name());
+				 });
+
 	std::unique_ptr<cdownload::Writer> res;
 	switch (output.format()) {
 	case Output::Format::ASCII: {
 		if (params_.disableAveraging()) {
-			res.reset(new DirectASCIIWriter({dataFields, filterVariables}, params_.writeEpoch()));
+			res.reset(new DirectASCIIWriter({fieldsForWriters, filterVariableForWriter}, params_.writeEpoch()));
 		} else {
-			res.reset(new AveragedDataASCIIWriter({dataFields}, {filterVariables}, params_.writeEpoch()));
+			res.reset(new AveragedDataASCIIWriter({fieldsForWriters}, {filterVariableForWriter}, params_.writeEpoch()));
 		}
 		res->open(params_.outputDir() / (output.name() + ".txt"));
 		return res;
 	}
 	case Output::Format::Binary: {
 		if (params_.disableAveraging()) {
-			res.reset(new DirectBinaryWriter({dataFields, filterVariables}, params_.writeEpoch()));
+			res.reset(new DirectBinaryWriter({fieldsForWriters, filterVariableForWriter}, params_.writeEpoch()));
 		} else {
-			res.reset(new AveragedDataBinaryWriter({dataFields}, {filterVariables}, params_.writeEpoch()));
+			res.reset(new AveragedDataBinaryWriter({fieldsForWriters}, {filterVariableForWriter}, params_.writeEpoch()));
 		}
 		res->open(params_.outputDir() / (output.name() + ".bin"));
 		return res;
@@ -427,6 +440,29 @@ cdownload::Driver::createWriterForOutput(const cdownload::Output& output,
 void cdownload::Driver::createFilters(std::vector<std::shared_ptr<RawDataFilter> >& rawDataFilters,
                                       std::vector<std::shared_ptr<AveragedDataFilter> >& averagedDataFilters)
 {
+
+	// 1. Find all products from (virtual) dataset $FILTER, if any
+	// 2. get filter names from this list
+	// 3. create all required filters
+
+	bool isPlasmaSheetFilterNeeded = params_.plasmaSheetFilter();
+	const bool isPlasmaSheetFilterActive = params_.plasmaSheetFilter();
+
+	for (const auto& output: params_.outputs()) {
+		const auto& productsMap = output.products();
+		if (productsMap.count("$FILTER") == 0) {
+			continue;
+		}
+
+		const auto& filterProducts = productsMap.at("$FILTER");
+		for (const ProductName& pr: filterProducts) {
+			// here dataset name is the name of the filter
+			if (Filter::productBelongsToFilter(pr, Filters::PlasmaSheet::filterName())) {
+				isPlasmaSheetFilterNeeded = true;
+			}
+		}
+	}
+
 	if (params_.onlyNightSide()) {
 		rawDataFilters.emplace_back(new Filters::NightSide());
 	}
@@ -449,8 +485,9 @@ void cdownload::Driver::createFilters(std::vector<std::shared_ptr<RawDataFilter>
 			averagedDataFilters.emplace_back(new Filters::H1DensityFilter(product, dfp.minDensity));
 		}
 
-		if (params_.plasmaSheetFilter()) {
+		if (isPlasmaSheetFilterNeeded) {
 			averagedDataFilters.emplace_back(new Filters::PlasmaSheet());
+			averagedDataFilters.back()->enable(isPlasmaSheetFilterActive);
 		}
 	}
 }

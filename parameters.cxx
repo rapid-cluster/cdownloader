@@ -67,6 +67,16 @@ const std::vector<cdownload::ProductName>& cdownload::Output::productsForDataset
 	throw std::runtime_error("No dataset with name");
 }
 
+const std::vector<cdownload::ProductName> cdownload::Output::productsForDatasetOrDefault(
+	const std::string& dataset, const std::vector<ProductName>& defaultValue) const
+{
+	auto i = products_.find(dataset);
+	if (i != products_.end()) {
+		return i->second;
+	}
+	return defaultValue;
+}
+
 cdownload::Parameters::Parameters(const path& outputDir, const path& workDir, const path& cacheDir)
 	: startDate_{makeDateTime(2000, 7, 16)}
 	, endDate_{datetime::utcNow()}
