@@ -604,7 +604,11 @@ bool cdownload::CDF::Reader::readTimeStampRecord(std::size_t index)
 		return false;
 	}
 
-	return variables_[timeStampVariableIndex_]->read(buffers_[timeStampVariableIndex_].get(), index, 1);
+	const auto read = variables_[timeStampVariableIndex_]->read(buffers_[timeStampVariableIndex_].get(), index, 1);
+	if (!read) {
+		eof_ = true;
+	}
+	return read != 0;
 }
 
 const void* cdownload::CDF::Reader::bufferForVariable(std::size_t variableIndex) const
