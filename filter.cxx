@@ -27,6 +27,10 @@
 
 const cdownload::DatasetName cdownload::Filter::FAKE_FILTER_DATASET = "FILTER";
 
+namespace {
+	const char FilterVarSeparator = '_';
+}
+
 cdownload::Filter::Filter(const std::string& name, std::size_t maxFieldsCount, std::size_t maxVariablesCount)
 	: maxFieldsCount_{maxFieldsCount}
 	, maxVariablesCount_{maxVariablesCount}
@@ -35,6 +39,11 @@ cdownload::Filter::Filter(const std::string& name, std::size_t maxFieldsCount, s
 	requiredFields_.reserve(maxFieldsCount_);
 	availableVariables_.reserve(maxVariablesCount_);
 	enabledVariables_.reserve(maxVariablesCount_);
+}
+
+void cdownload::Filter::enable(bool b)
+{
+	enabled_ = b;
 }
 
 std::vector<cdownload::FieldDesc> cdownload::Filter::variables() const
@@ -91,12 +100,17 @@ cdownload::ProductName cdownload::Filter::composeProductName(const std::string& 
 
 std::string cdownload::Filter::composeParameterName(const std::string& shortName, const std::string& filterName)
 {
-	return filterName + '_' + shortName;
+	return filterName + FilterVarSeparator + shortName;
+}
+
+bool cdownload::Filter::productBelongsToFilter(const cdownload::ProductName& pr, const string& filterName)
+{
+	return pr.shortName().find(filterName + FilterVarSeparator) == 0;
 }
 
 std::pair<std::string, std::string> cdownload::Filter::splitParameterName(const std::string& name)
 {
-	auto sepPos = name.find('_');
+	auto sepPos = name.find(FilterVarSeparator);
 	if (sepPos == std::string::npos || sepPos == 0 || sepPos + 2 >= name.size()) {
 		throw std::runtime_error("Incorrect name");
 	}

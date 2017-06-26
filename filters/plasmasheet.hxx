@@ -32,10 +32,12 @@ namespace Filters {
 		using base = RawDataFilter;
 	public:
 		PlasmaSheetModeFilter();
-		bool test(const std::vector<const void *> & line, const DatasetName& ds, std::vector<void*>& variables) const override;
+
+		static string filterName();
+
 	private:
+		bool test(const std::vector<const void *> & line, const DatasetName& ds, std::vector<void*>& variables) const override;
 		const Field& cis_mode_;
-// 		const Field& cis_mode_key_;
 	};
 
 	class PlasmaSheet : public AveragedDataFilter {
@@ -43,8 +45,10 @@ namespace Filters {
 	public:
 		PlasmaSheet();
 
-		bool test(const std::vector<AveragedVariable>& line, std::vector<void*>& variables) const override;
+		static string filterName();
 	private:
+		bool test(const std::vector<AveragedVariable>& line, std::vector<void*>& variables) const override;
+
 		const Field& H1density_;
 		const Field& H1T_;
 		const Field& O1density_;

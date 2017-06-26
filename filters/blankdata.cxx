@@ -36,6 +36,10 @@ cdownload::Filters::BlankDataFilter::BlankDataFilter(const std::map<ProductName,
 bool cdownload::Filters::BlankDataFilter::test(const std::vector<const void *>& line, const DatasetName& /*ds*/,
                                                std::vector<void*>& /*variables*/) const
 {
+	if (!enabled()) {
+		return true;
+	}
+
 	for (const auto& p: fields_) {
 		switch (p.first.dataType()) {
 			case FieldDesc::DataType::UnsignedInt:

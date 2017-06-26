@@ -84,17 +84,18 @@ std::vector<cdownload::EpochRange> cdownload::Filters::TimeFilter::loadRanges(co
 	std::getline(inp, line); // read header
 	std::vector<string> headerParts;
 	boost::algorithm::split(headerParts, line, boost::is_any_of("\t"), boost::token_compress_on);
-	const std::size_t entriesColumnIndex = headerParts.size() - 1; // the last one
+	if (headerParts.size() != 1) {
+		throw std::runtime_error("Wrong time filter input file format: only a single column expected");
+	}
 
 	std::vector<cdownload::EpochRange> res;
 
-	std::vector<string> parts;
 	while (inp) {
 		std::getline(inp, line);
-		boost::algorithm::split(parts, line, boost::is_any_of("\t,"), boost::token_compress_on);
-		for (std::size_t i = entriesColumnIndex; i < parts.size(); ++i) {
-			res.push_back(parseRange(parts[i]));
+		if (line.empty()) {
+			continue;
 		}
+		res.push_back(parseRange(line));
 	}
 
 	std::sort(res.begin(), res.end(), RangeComparisonByBegin());

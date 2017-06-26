@@ -53,6 +53,13 @@ namespace cdownload {
 		static ProductName composeProductName(const std::string& shortName, const std::string& filterName);
 		virtual std::vector<FieldDesc> variables() const;
 
+		static bool productBelongsToFilter(const ProductName& pr, const string& filterName);
+
+		bool enabled() const {
+			return enabled_;
+		}
+
+		void enable(bool b);
 	protected:
 		Filter(const std::string& name, std::size_t maxFieldsCount = 0, std::size_t maxVariablesCount = 0);
 
@@ -70,10 +77,10 @@ namespace cdownload {
 			assert(index < enabledVariables_.size());
 			return enabledVariables_[index];
 		}
-
 	private:
 
 		static const DatasetName FAKE_FILTER_DATASET;
+		bool enabled_;
 
 		std::vector<Field> requiredFields_; //! for requiredProducts()
 		std::vector<Field> availableProducts_;

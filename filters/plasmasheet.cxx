@@ -67,6 +67,9 @@ cdownload::Filters::PlasmaSheetModeFilter::PlasmaSheetModeFilter()
 bool cdownload::Filters::PlasmaSheetModeFilter::test(const std::vector<const void*>& line, const DatasetName& /*ds*/,
                                                      std::vector<void*>& /*variables*/) const
 {
+	if (!enabled()) {
+		return true;
+	}
 	// CIS_mode is 13 or 8
 	const int* cis_mode = cis_mode_.data<int>(line);
 	if (*cis_mode != 13 && *cis_mode != 8) {
@@ -77,7 +80,7 @@ bool cdownload::Filters::PlasmaSheetModeFilter::test(const std::vector<const voi
 }
 
 cdownload::Filters::PlasmaSheet::PlasmaSheet()
-	: base("PlasmaSheet", 7, 3)
+	: base(filterName(), 7, 3)
 	, H1density_(addField("density__C4_CP_CIS-CODIF_HS_H1_MOMENTS"))
 	, H1T_(addField("T__C4_CP_CIS-CODIF_HS_H1_MOMENTS"))
 	, O1density_(addField("density__C4_CP_CIS-CODIF_HS_O1_MOMENTS"))
@@ -93,6 +96,12 @@ cdownload::Filters::PlasmaSheet::PlasmaSheet()
 		&reportMagneticPressureIndex_)}
 {
 }
+
+cdownload::string cdownload::Filters::PlasmaSheet::filterName()
+{
+	return "PlasmaSheet";
+}
+
 
 namespace {
 	template <class T>
@@ -151,7 +160,7 @@ bool cdownload::Filters::PlasmaSheet::test(const std::vector<AveragedVariable>& 
 		*(reportMagneticPressure_.data<double>(variables)) = magnetic;
 	}
 
-	if (beta < 0.2 || beta > 10) {
+	if (enabled() && (beta < 0.2 || beta > 10)) {
 		return false;
 	}
 	return true;

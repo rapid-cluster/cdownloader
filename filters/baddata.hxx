@@ -9,6 +9,7 @@ namespace Filters {
 		using base = RawDataFilter;
 	public:
 		BadDataFilter();
+	private:
 		bool test(const std::vector<const void*>& line, const DatasetName& ds, std::vector<void*>& variables) const override;
 	};
 }

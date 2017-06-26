@@ -34,8 +34,9 @@ namespace Filters {
 		using base = RawDataFilter;
 	public:
 		BlankDataFilter(const std::map<ProductName, double>& blanks);
-		bool test(const std::vector<const void*>& line, const DatasetName& ds, std::vector<void*>& variables) const override;
 	private:
+		bool test(const std::vector<const void*>& line, const DatasetName& ds, std::vector<void*>& variables) const override;
+
 		std::vector<std::pair<const Field&, double>> fields_;
 	};
 }
