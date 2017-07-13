@@ -32,7 +32,8 @@ namespace {
 }
 
 cdownload::Filter::Filter(const std::string& name, std::size_t maxFieldsCount, std::size_t maxVariablesCount)
-	: maxFieldsCount_{maxFieldsCount}
+	: enabled_{true}
+	, maxFieldsCount_{maxFieldsCount}
 	, maxVariablesCount_{maxVariablesCount}
 	, name_{name}
 {
