@@ -142,9 +142,11 @@ int main(int ac, char** av)
 
 	po::options_description optionalFilters("Optional filters");
 	optionalFilters.add_options()
-		("nighttime-only", po::value<bool>()->implicit_value(true), "Use only night time data")
+		("night-side", po::value<bool>()->implicit_value(true), "Use only night side data (Rx < 0)")
 		("allow-blanks", po::value<bool>()->implicit_value(true), "Do not remove blank values")
 		("plasma-sheet", po::value<bool>()->implicit_value(true)->default_value(true), "Use measurements in plasmasheet only")
+		("plasma-sheet-min-r", po::value<double>()->default_value(4.0),
+			"Minimal distance in Earth radius units for plasma-sheet filter")
 	;
 
 	desc.add(optionalFilters);
@@ -219,9 +221,10 @@ int main(int ac, char** av)
 	}
 
 	parameters.plasmaSheetFilter(vm["plasma-sheet"].as<bool>());
+	parameters.plasmaSheetMinR(vm["plasma-sheet-min-r"].as<double>());
 
-	if (vm.count("nighttime-only")) {
-		parameters.onlyNightSide(vm["nighttime-only"].as<bool>());
+	if (vm.count("night-side")) {
+		parameters.onlyNightSide(vm["night-side"].as<bool>());
 	}
 
 	if (vm.count("allow-blanks")) {

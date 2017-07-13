@@ -486,7 +486,7 @@ void cdownload::Driver::createFilters(std::vector<std::shared_ptr<RawDataFilter>
 		}
 
 		if (isPlasmaSheetFilterNeeded) {
-			averagedDataFilters.emplace_back(new Filters::PlasmaSheet());
+			averagedDataFilters.emplace_back(new Filters::PlasmaSheet(params_.plasmaSheetMinR()));
 			averagedDataFilters.back()->enable(isPlasmaSheetFilterActive);
 		}
 	}

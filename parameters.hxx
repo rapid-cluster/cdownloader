@@ -205,6 +205,10 @@ namespace cdownload {
 		}
 		void plasmaSheetFilter(bool v);
 
+		double plasmaSheetMinR() const {
+			return plasmaSheetMinR_;
+		}
+		void plasmaSheetMinR(double v);
 	private:
 		datetime startDate_;
 		datetime endDate_;
@@ -224,10 +228,14 @@ namespace cdownload {
 		bool disableAveraging_ = false;
 		bool writeEpoch_ = false;
 		bool plasmaSheetFilter_ = true;
+		double plasmaSheetMinR_;
 	};
 
 	std::ostream& operator<<(std::ostream& os, const Parameters& p);
 	std::ostream& operator<<(std::ostream& os, const Output& o);
+	std::ostream& operator<<(std::ostream& os, const QualityFilterParameters& p);
+	std::ostream& operator<<(std::ostream& os, const DensityFilterParameters& p);
+	std::ostream& operator<<(std::ostream& os, DensitySource ds);
 }
 
 #endif // CDOWNLOAD_PARAMETERS_H

@@ -79,8 +79,9 @@ bool cdownload::Filters::PlasmaSheetModeFilter::test(const std::vector<const voi
 	return true;
 }
 
-cdownload::Filters::PlasmaSheet::PlasmaSheet()
+cdownload::Filters::PlasmaSheet::PlasmaSheet(double minR)
 	: base(filterName(), 7, 3)
+	, minR_{minR}
 	, H1density_(addField("density__C4_CP_CIS-CODIF_HS_H1_MOMENTS"))
 	, H1T_(addField("T__C4_CP_CIS-CODIF_HS_H1_MOMENTS"))
 	, O1density_(addField("density__C4_CP_CIS-CODIF_HS_O1_MOMENTS"))
@@ -132,7 +133,7 @@ bool cdownload::Filters::PlasmaSheet::test(const std::vector<AveragedVariable>& 
 	const AveragedVariable& pos = sc_pos_xyz_gse_.data(line);
 	constexpr const double RE = 6371;
 
-	if (std::sqrt(sqr(pos[0].mean()) + sqr(pos[1].mean()) + sqr(pos[2].mean())) < 4 * RE) {
+	if (enabled() && std::sqrt(sqr(pos[0].mean()) + sqr(pos[1].mean()) + sqr(pos[2].mean())) < minR_ * RE) {
 		return false;
 	}
 

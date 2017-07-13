@@ -310,6 +310,11 @@ void cdownload::Parameters::plasmaSheetFilter(bool v)
 	plasmaSheetFilter_ = v;
 }
 
+void cdownload::Parameters::plasmaSheetMinR(double v)
+{
+	plasmaSheetMinR_ = v;
+}
+
 namespace {
 	void printOutput(std::ostream& os, const cdownload::Output& o,
 		             const std::string& fieldDelim, const std::string& ident)
@@ -330,6 +335,17 @@ std::ostream& cdownload::operator<<(std::ostream& os, const cdownload::Parameter
 		<< "Interval: " << p.timeInterval() << std::endl
 		<< "Cache dir: " << p.cacheDir() <<
 			" (download missing: " << std::boolalpha << p.downloadMissingData() << ")" << std::endl
+		<< "Options:" << std::endl
+			<< '\t' << "night-side" << ": " << p.onlyNightSide() << std::endl
+			<< '\t' << "allow-blanks" << ": " << p.allowBlanks() << std::endl
+			<< '\t' << "plasma-sheet" << ": " << p.plasmaSheetFilter() << std::endl
+			<< '\t' << "plasma-sheet-min-r" << ": " << p.plasmaSheetMinR() << std::endl
+			<< '\t' << "valid-time-ranges" << ": " << p.timeRangesFileName() << std::endl
+			<< '\t' << "no-averaging" << ": " << p.disableAveraging() << std::endl
+			<< '\t' << "write-epoch-column" << ": " << p.writeEpoch() << std::endl
+			<< '\t' << "quality filters" << ": " << put_list(p.qualityFilters()) << std::endl
+			<< '\t' << "density filters" << ": " << put_list(p.densityyFilters()) << std::endl
+
 		<< "Outputs:" << std::endl;
 		for (const Output& o: p.outputs()) {
 			printOutput(os, o, "\n", "\t");
@@ -338,10 +354,33 @@ std::ostream& cdownload::operator<<(std::ostream& os, const cdownload::Parameter
 }
 
 
-std::ostream & cdownload::operator<<(std::ostream& os, const cdownload::Output& o)
+std::ostream& cdownload::operator<<(std::ostream& os, const cdownload::Output& o)
 {
 	printOutput(os, o, "\t", "");
 	return os;
 }
 
+std::ostream& cdownload::operator<<(std::ostream& os, const cdownload::QualityFilterParameters& p)
+{
+	os << p.product << ':' << p.minQuality;
+	return os;
+}
 
+std::ostream& cdownload::operator<<(std::ostream& os, const cdownload::DensityFilterParameters& p)
+{
+	os << p.source << ':' << p.minDensity;
+	return os;
+}
+
+std::ostream& cdownload::operator<<(std::ostream& os, cdownload::DensitySource ds)
+{
+	switch(ds) {
+		case DensitySource::CODIF:
+			os << "CODIF";
+			break;
+		case DensitySource::HIA:
+			os << "HIA";
+			break;
+	}
+	return os;
+}

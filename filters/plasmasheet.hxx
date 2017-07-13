@@ -43,12 +43,13 @@ namespace Filters {
 	class PlasmaSheet : public AveragedDataFilter {
 		using base = AveragedDataFilter;
 	public:
-		PlasmaSheet();
+		PlasmaSheet(double minR);
 
 		static string filterName();
 	private:
 		bool test(const std::vector<AveragedVariable>& line, std::vector<void*>& variables) const override;
 
+		double minR_;
 		const Field& H1density_;
 		const Field& H1T_;
 		const Field& O1density_;
