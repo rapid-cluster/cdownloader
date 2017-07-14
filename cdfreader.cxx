@@ -248,7 +248,9 @@ cdownload::CDF::Variable::Variable(cdownload::CDF::File* file, std::size_t index
 			}
 		}
 	}
-
+#ifndef NDEBUG
+	name_ = this->name();
+#endif
 }
 
 void cdownload::CDF::Variable::setFile(cdownload::CDF::File* file)

@@ -93,6 +93,9 @@ namespace CDF {
 		std::size_t index_;
 		std::size_t recordsCount_;
 		double fillValue_;
+#ifndef NDEBUG
+		std::string name_;
+#endif
 	};
 
 	class File {
