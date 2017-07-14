@@ -31,7 +31,7 @@ namespace Filters {
 	class PlasmaSheetModeFilter: public RawDataFilter {
 		using base = RawDataFilter;
 	public:
-		PlasmaSheetModeFilter();
+		PlasmaSheetModeFilter(const string& spacecraftName);
 
 		static string filterName();
 
@@ -43,7 +43,7 @@ namespace Filters {
 	class PlasmaSheet : public AveragedDataFilter {
 		using base = AveragedDataFilter;
 	public:
-		PlasmaSheet(double minR);
+		PlasmaSheet(double minR, const string& spacecraftName);
 
 		static string filterName();
 	private:

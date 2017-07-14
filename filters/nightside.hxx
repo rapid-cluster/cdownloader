@@ -30,7 +30,7 @@ namespace Filters {
 	class NightSide: public RawDataFilter {
 		using base = RawDataFilter;
 	public:
-		NightSide();
+		NightSide(const std::string& spacecraftName);
 	private:
 		bool test(const std::vector<const void*> & line, const DatasetName & ds, std::vector<void*>& variables) const override;
 		const Field& sc_pos_xyz_gse_;

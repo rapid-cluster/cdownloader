@@ -22,9 +22,9 @@
 
 #include "./nightside.hxx"
 
-cdownload::Filters::NightSide::NightSide()
+cdownload::Filters::NightSide::NightSide(const std::string& spacecraftName)
 	: base("NightSide", 1)
-	, sc_pos_xyz_gse_(addField("sc_pos_xyz_gse__C4_CP_FGM_SPIN"))
+	, sc_pos_xyz_gse_(addField({"sc_pos_xyz_gse", spacecraftName, "CP_FGM_SPIN"}))
 {
 }
 

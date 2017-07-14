@@ -315,6 +315,11 @@ void cdownload::Parameters::plasmaSheetMinR(double v)
 	plasmaSheetMinR_ = v;
 }
 
+void cdownload::Parameters::spacecraftName(const string& name)
+{
+	spacecraftName_ = name;
+}
+
 namespace {
 	void printOutput(std::ostream& os, const cdownload::Output& o,
 		             const std::string& fieldDelim, const std::string& ident)
@@ -345,6 +350,7 @@ std::ostream& cdownload::operator<<(std::ostream& os, const cdownload::Parameter
 			<< '\t' << "write-epoch-column" << ": " << p.writeEpoch() << std::endl
 			<< '\t' << "quality filters" << ": " << put_list(p.qualityFilters()) << std::endl
 			<< '\t' << "density filters" << ": " << put_list(p.densityyFilters()) << std::endl
+			<< '\t' << "spacecraft" << ": " << p.spacecraftName() << std::endl
 
 		<< "Outputs:" << std::endl;
 		for (const Output& o: p.outputs()) {

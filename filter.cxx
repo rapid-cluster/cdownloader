@@ -123,8 +123,8 @@ cdownload::ProductName cdownload::Filter::composeProductName(const std::string& 
 	return composeProductName(shortName, name());
 }
 
-const cdownload::Field& cdownload::Filter::addField(const std::string& productName) {
-	requiredFields_.push_back(Field(FieldDesc(ProductName(productName), std::numeric_limits<double>::quiet_NaN()),
+const cdownload::Field& cdownload::Filter::addField(const ProductName& productName) {
+	requiredFields_.push_back(Field(FieldDesc(productName, std::numeric_limits<double>::quiet_NaN()),
 	                              static_cast<std::size_t>(-1)));
 	if (requiredFields_.size() > maxFieldsCount_) {
 		throw std::logic_error("Relocation in fields array makes all field references invalid");

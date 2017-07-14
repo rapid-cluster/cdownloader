@@ -70,6 +70,11 @@ cdownload::ProductName::ProductName(const DatasetName& datasetName, const std::s
 {
 }
 
+cdownload::ProductName::ProductName(const DatasetName& datasetName, const std::string& spacecraftName, const std::string& shortVariableName)
+	: ProductName(spacecraftName + '_' + datasetName, shortVariableName)
+{
+}
+
 std::string cdownload::ProductName::shortName() const
 {
 	auto delimPos = variableName_.find(delimiter);

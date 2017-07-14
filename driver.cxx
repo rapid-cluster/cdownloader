@@ -467,11 +467,11 @@ void cdownload::Driver::createFilters(std::vector<std::shared_ptr<RawDataFilter>
 	rawDataFilters.emplace_back(new Filters::BadDataFilter());
 
 	if (params_.onlyNightSide()) {
-		rawDataFilters.emplace_back(new Filters::NightSide());
+		rawDataFilters.emplace_back(new Filters::NightSide(params_.spacecraftName()));
 	}
 
 	if (params_.plasmaSheetFilter()) {
-		rawDataFilters.emplace_back(new Filters::PlasmaSheetModeFilter());
+		rawDataFilters.emplace_back(new Filters::PlasmaSheetModeFilter(params_.spacecraftName()));
 	}
 
 	for (const auto& qfp: params_.qualityFilters()) {
@@ -482,12 +482,12 @@ void cdownload::Driver::createFilters(std::vector<std::shared_ptr<RawDataFilter>
 	if (!params_.disableAveraging()) {
 		for (const auto& dfp: params_.densityyFilters()) {
 			const ProductName product = dfp.source == DensitySource::CODIF ?
-			                            ProductName("density__C4_CP_CIS-CODIF_HS_H1_MOMENTS") : ProductName("density__C1_CP_CIS-HIA_ONBOARD_MOMENTS");
+			                            ProductName("density", params_.spacecraftName(), "CP_CIS-CODIF_HS_H1_MOMENTS") : ProductName("density", params_.spacecraftName(), "CP_CIS-HIA_ONBOARD_MOMENTS");
 			averagedDataFilters.emplace_back(new Filters::H1DensityFilter(product, dfp.minDensity));
 		}
 
 		if (isPlasmaSheetFilterNeeded) {
-			averagedDataFilters.emplace_back(new Filters::PlasmaSheet(params_.plasmaSheetMinR()));
+			averagedDataFilters.emplace_back(new Filters::PlasmaSheet(params_.plasmaSheetMinR(), params_.spacecraftName()));
 			averagedDataFilters.back()->enable(isPlasmaSheetFilterActive);
 		}
 	}

@@ -209,6 +209,11 @@ namespace cdownload {
 			return plasmaSheetMinR_;
 		}
 		void plasmaSheetMinR(double v);
+
+		const string& spacecraftName() const {
+			return spacecraftName_;
+		}
+		void spacecraftName(const string& name);
 	private:
 		datetime startDate_;
 		datetime endDate_;
@@ -229,6 +234,7 @@ namespace cdownload {
 		bool writeEpoch_ = false;
 		bool plasmaSheetFilter_ = true;
 		double plasmaSheetMinR_;
+		string spacecraftName_;
 	};
 
 	std::ostream& operator<<(std::ostream& os, const Parameters& p);

@@ -39,6 +39,7 @@ namespace cdownload {
 		ProductName();
 		ProductName(const std::string& name);
 		ProductName(const DatasetName& datasetName, const std::string& shortVariableName);
+		ProductName(const DatasetName& datasetName, const std::string& spacecraftName, const std::string& shortVariableName);
 
 		const DatasetName& dataset() const {
 			return datasetName_;

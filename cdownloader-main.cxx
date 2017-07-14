@@ -110,6 +110,7 @@ int main(int ac, char** av)
 	    ("cache-dir", po::value<path>(), "Directory with pre-downloaded CDF files")
 	    ("download-missing", po::value<bool>()->default_value(true)->implicit_value(true),
 	         "Download missing from cache data")
+		("spacecraft", po::value<std::string>()->default_value("C4"), "CLUSTER spacecraft name")
 // 	    ("omni-db-file")
 		;
 
@@ -181,6 +182,7 @@ int main(int ac, char** av)
 	cdownload::Parameters parameters {vm["output-dir"].as<path>(), vm["work-dir"].as<path>(), cacheDir};
 	parameters.setContinueMode(vm["continue"].as<bool>());
 	parameters.setDownloadMissingData(vm["download-missing"].as<bool>());
+	parameters.spacecraftName(vm["spacecraft"].as<std::string>());
 
 	std::vector<cdownload::ProductName> qualityFilterProducts;
 	std::vector<int> qualityFilterMinQualities;

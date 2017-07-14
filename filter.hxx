@@ -63,7 +63,7 @@ namespace cdownload {
 	protected:
 		Filter(const std::string& name, std::size_t maxFieldsCount = 0, std::size_t maxVariablesCount = 0);
 
-		const Field& addField(const std::string& productName);
+		const Field& addField(const ProductName& productName);
 		const Field& addVariable(const FieldDesc& desc, std::size_t* index);
 		const Field& field(const std::string& name);
 		const std::vector<Field>& availableProducts() const {

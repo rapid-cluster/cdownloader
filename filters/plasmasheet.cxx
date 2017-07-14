@@ -57,9 +57,9 @@
 
 #include <cmath>
 
-cdownload::Filters::PlasmaSheetModeFilter::PlasmaSheetModeFilter()
+cdownload::Filters::PlasmaSheetModeFilter::PlasmaSheetModeFilter(const string& spacecraftName)
 	: base("PlasmaSheetMode", 1)
-	, cis_mode_(addField("cis_mode__C4_CP_CIS_MODES"))
+	, cis_mode_(addField({"cis_mode", spacecraftName, "CP_CIS_MODES"}))
 //  , cis_mode_key_(addField("cis_mode_key__C4_CP_CIS_MODES"))
 {
 }
@@ -79,15 +79,15 @@ bool cdownload::Filters::PlasmaSheetModeFilter::test(const std::vector<const voi
 	return true;
 }
 
-cdownload::Filters::PlasmaSheet::PlasmaSheet(double minR)
+cdownload::Filters::PlasmaSheet::PlasmaSheet(double minR, const string& spacecraftName)
 	: base(filterName(), 7, 3)
 	, minR_{minR}
-	, H1density_(addField("density__C4_CP_CIS-CODIF_HS_H1_MOMENTS"))
-	, H1T_(addField("T__C4_CP_CIS-CODIF_HS_H1_MOMENTS"))
-	, O1density_(addField("density__C4_CP_CIS-CODIF_HS_O1_MOMENTS"))
-	, O1T_(addField("T__C4_CP_CIS-CODIF_HS_O1_MOMENTS"))
-	, BMag_(addField("B_mag__C4_CP_FGM_SPIN"))
-	, sc_pos_xyz_gse_(addField("sc_pos_xyz_gse__C4_CP_FGM_SPIN"))
+	, H1density_(addField({"density", spacecraftName, "CODIF_HS_H1_MOMENTS"}))
+	, H1T_(addField({"T", spacecraftName, "CP_CIS-CODIF_HS_H1_MOMENTS"}))
+	, O1density_(addField({"density", spacecraftName, "CP_CIS-CODIF_HS_O1_MOMENTS"}))
+	, O1T_(addField({"T", spacecraftName, "CP_CIS-CODIF_HS_O1_MOMENTS"}))
+	, BMag_(addField({"B_mag", spacecraftName, "CP_FGM_SPIN"}))
+	, sc_pos_xyz_gse_(addField({"sc_pos_xyz_gse", spacecraftName, "CP_FGM_SPIN"}))
 	, reportBeta_{addVariable(FieldDesc(composeProductName("beta"), -1., FieldDesc::DataType::Real, sizeof(double), 1), &reportBetaIndex_)}
 	, reportPlasmaPressure_{addVariable(
 		FieldDesc(composeProductName("PlasmaPressure"), -1., FieldDesc::DataType::Real, sizeof(double), 1),
