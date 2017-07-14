@@ -463,11 +463,12 @@ void cdownload::Driver::createFilters(std::vector<std::shared_ptr<RawDataFilter>
 		}
 	}
 
+	// better to be the first one to simplify debugging
+	rawDataFilters.emplace_back(new Filters::BadDataFilter());
+
 	if (params_.onlyNightSide()) {
 		rawDataFilters.emplace_back(new Filters::NightSide());
 	}
-
-	rawDataFilters.emplace_back(new Filters::BadDataFilter());
 
 	if (params_.plasmaSheetFilter()) {
 		rawDataFilters.emplace_back(new Filters::PlasmaSheetModeFilter());
