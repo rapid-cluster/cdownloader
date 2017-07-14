@@ -64,10 +64,10 @@ cdownload::Filters::PlasmaSheetModeFilter::PlasmaSheetModeFilter()
 {
 }
 
-bool cdownload::Filters::PlasmaSheetModeFilter::test(const std::vector<const void*>& line, const DatasetName& /*ds*/,
+bool cdownload::Filters::PlasmaSheetModeFilter::test(const std::vector<const void*>& line, const DatasetName& ds,
                                                      std::vector<void*>& /*variables*/) const
 {
-	if (!enabled()) {
+	if (!enabled() && (ds != cis_mode_.name().dataset())) {
 		return true;
 	}
 	// CIS_mode is 13 or 8

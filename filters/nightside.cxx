@@ -28,13 +28,13 @@ cdownload::Filters::NightSide::NightSide()
 {
 }
 
-bool cdownload::Filters::NightSide::test(const std::vector<const void *>& line, const DatasetName& /*ds*/,
+bool cdownload::Filters::NightSide::test(const std::vector<const void *>& line, const DatasetName& ds,
                                          std::vector<void*>& /*variables*/) const
 {
-	if (!enabled()) {
+	if (!enabled() || (ds != sc_pos_xyz_gse_.name().dataset())) {
 		return true;
 	}
-	const double* pos = sc_pos_xyz_gse_.data<double>(line);
+	const float* pos = sc_pos_xyz_gse_.data<float>(line);
 	if (pos[0] > 0) {
 		return false;
 	}
