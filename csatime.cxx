@@ -47,7 +47,7 @@ cdownload::DateTime cdownload::DateTime::utcNow()
 	std::tm utcNow;
 	gmtime_r(&now, &utcNow);
 	return makeDateTime(static_cast<unsigned>(utcNow.tm_year + 1900),
-	                    static_cast<unsigned>(utcNow.tm_mon),
+	                    static_cast<unsigned>(utcNow.tm_mon) + 1,
 	                    static_cast<unsigned>(utcNow.tm_mday),
 	                    static_cast<unsigned>(utcNow.tm_hour),
 	                    static_cast<unsigned>(utcNow.tm_min), utcNow.tm_sec);
