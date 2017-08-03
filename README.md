@@ -68,10 +68,10 @@ is `info`.
 For a full list of options, launch program with `--help` parameter.
 
 
-Additional tool `async-donwload-url`, can be usefull to fill data cache. For a given data set name, it outputs
+Additional tool `csa-async-donwload-url`, can be usefull to fill data cache. For a given data set name, it outputs
 a link for initiating offline downloading for that data set. Example:
 ```bash
-$ tools/async-donwload-url C1_CP_CIS-HIA_ONBOARD_MOMENTS
+$ csa-async-donwload-url C1_CP_CIS-HIA_ONBOARD_MOMENTS
 https://csa.esac.esa.int/csa/aio/async-product-action?DATASET_ID=C1_CP_CIS-HIA_ONBOARD_MOMENTS&START_DATE=2001-01-01T00:00:00.000Z&END_DATE=2015-12-31T23:59:59.000Z&DELIVERY_FORMAT=CDF&DELIVERY_INTERVAL=All
 ```
 The tool downloads metadata for the given datasets, detect maximal available time range and composes download URL.
