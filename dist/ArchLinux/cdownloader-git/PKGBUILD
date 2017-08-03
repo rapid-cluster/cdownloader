@@ -1,0 +1,50 @@
+pkgname=cdownloader-git
+pkgver=74.34a8f31
+pkgrel=1
+pkgdesc=""
+arch=('x86_64')
+url=""
+license=('GPL3')
+groups=()
+depends=(boost cdf curl jsoncpp libarchive)
+makedepends=('git cmake ninja')
+provides=('cdownloader')
+conflicts=()
+replaces=()
+backup=()
+_gitname="cdownloader"
+options=()
+install=''
+source=("$_gitname::git+https://github.com/rapid-cluster/cdownloader.git")
+noextract=()
+md5sums=('SKIP')
+
+pkgver() {
+  cd $_gitname
+  echo $(git rev-list --count HEAD).$(git rev-parse --short HEAD)
+}
+
+prepare() {
+  cd $_gitname
+  git submodule init
+  git submodule update	
+}
+
+build() {
+  cd "$srcdir"
+  mkdir -p cbuild
+  pushd cbuild
+  cmake -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+	-DCMAKE_EXPORT_NO_PACKAGE_REGISTRY=True \
+        -DCMAKE_INSTALL_PREFIX=/usr ../$_gitname
+  ninja -l 4 || return 1
+  popd
+}
+
+package() {
+  cd $srcdir/cbuild
+  DESTDIR="$pkgdir" ninja  install
+  cd ..
+  rm -fr cbuild
+}

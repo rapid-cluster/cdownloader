@@ -1,0 +1,62 @@
+# This is an example PKGBUILD file. Use this as a start to creating your own,
+# and remove these comments. For more information, see 'man PKGBUILD'.
+# NOTE: Please fill out the license field for your package! If it is unknown,
+# then please put 'unknown'.
+
+# Maintainer: Your Name <youremail@domain.com>
+pkgname=cdf
+pkgver=3.6.4
+pkgrel=1
+pkgdesc="Common Data Format I/O library for multi-dimensional data sets"
+arch=('x86_64')
+url="http://cdf.gsfc.nasa.gov/"
+license=('CDF')
+groups=()
+depends=('ncurses')
+makedepends=()
+optdepends=()
+provides=()
+conflicts=()
+replaces=()
+backup=()
+options=()
+install=
+changelog=
+
+source=('https://cdaweb.gsfc.nasa.gov/pub/software/cdf/dist/cdf36_4/unix/cdf36_4-dist-cdf.tar.gz')
+md5sums=('a0fc52ac46aec74588676ba1327e1ebf')
+
+noextract=()
+
+my_srcdir="${pkgname}36_4-dist"
+my_pv_so=${pkgver:0:1}
+
+prepare() {
+	cd "${srcdir}/${my_srcdir}"
+	patch -p1 -i ../../cdf-3.6.4-Makefile.patch	
+	patch -p1 -i ../../cdf-3.6-soname.patch
+}
+
+build() {
+	cd "${srcdir}/${my_srcdir}"
+	make \
+                OS=linux \
+                CC=gcc \
+                ENV=gnu \
+                SHARED=yes \
+		SHAREDEXT_linux=so.${my_pv_so} \
+                CURSESLIB_linux_gnu="$(pkg-config --libs ncurses)" \
+                CURSES=yes \
+                all
+}
+
+package() {
+	cd "${srcdir}/${my_srcdir}"
+	make -j1 \
+		INSTALLDIR="${pkgdir}/usr" \
+		SHAREDEXT=so.${my_pv_so} \
+		install
+	ln -fs libcdf.so.${my_pv_so} ${pkgdir}/usr/lib/libcdf.so
+}
+
+# vim:set ts=2 sw=2 et:
