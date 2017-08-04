@@ -1,9 +1,9 @@
 pkgname=cdownloader-git
 pkgver=74.34a8f31
 pkgrel=1
-pkgdesc=""
+pkgdesc="Downloads, unpacks, and reads data from the Cluster Science Archive"
 arch=('x86_64')
-url=""
+url="https://github.com/rapid-cluster/cdownloader"
 license=('GPL3')
 groups=()
 depends=(boost cdf curl jsoncpp libarchive)
