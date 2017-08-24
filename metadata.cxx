@@ -112,6 +112,9 @@ cdownload::Metadata::DataSetMetadata cdownload::Metadata::downloadDatasetMetadat
 	names.push_back(datasetName);
 	MetadataDownloader downloader;
 	Json::Value ds = downloader.download(names, requiredFields())["data"][0];
+	if (ds.empty()) {
+		throw DataSetMetadataNotFound(datasetName);
+	}
 
 	Json::Value params = downloader.download(names, {"PARAMETER.PARAMETER_ID" /*, "PARAMETER.TYPE"*/})["data"];
 
@@ -139,4 +142,9 @@ std::ostream& cdownload::operator<<(std::ostream& os, const Metadata::DataSetMet
 		<< "Time range: [" << ds.minTime() << ", " << ds.maxTime() << ']' << std::endl
 		<< "Parameters: " << put_list(ds.parameters()) << std::endl;
 	return os;
+}
+
+cdownload::DataSetMetadataNotFound::DataSetMetadataNotFound(const cdownload::DatasetName& name)
+	: std::runtime_error("Metadata for data set '" + name + "' could not be found.")
+{
 }

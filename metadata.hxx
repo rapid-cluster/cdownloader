@@ -27,12 +27,17 @@
 #include <json/value.h>
 
 #include <iosfwd>
+#include <stdexcept>
 #include <string>
 #include <vector>
 #include <map>
 
 namespace cdownload {
 
+	class DataSetMetadataNotFound: public std::runtime_error {
+	public:
+		DataSetMetadataNotFound(const DatasetName& name);
+	};
 	/**
 	 * @brief Utility class for parsing JSON documents, returned by metadata CSA requests
 	 *
