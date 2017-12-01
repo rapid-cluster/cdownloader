@@ -23,7 +23,7 @@
 #include "datareader.hxx"
 
 #include "datasource.hxx"
-#include "cdfreader.hxx"
+#include "cdf/reader.hxx"
 #include "filters/timefilter.hxx"
 
 #include <algorithm>

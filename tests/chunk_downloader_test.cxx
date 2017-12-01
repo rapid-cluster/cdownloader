@@ -1,6 +1,6 @@
-#include "../chunkdownloader.hxx"
-#include "../downloader.hxx"
-#include "../metadata.hxx"
+#include "../csa/chunkdownloader.hxx"
+#include "../csa/downloader.hxx"
+#include "../csa/metadata.hxx"
 
 #include <boost/filesystem/operations.hpp>
 
@@ -17,6 +17,7 @@ int main(int /*argc*/, char** /*argv*/)
     );
 
 	using namespace cdownload;
+	using namespace cdownload::csa;
 
 	DataDownloader downloader;
 
@@ -27,7 +28,7 @@ int main(int /*argc*/, char** /*argv*/)
 	datetime availableStartDateTime = makeDateTime(1999, 1, 1);
 	datetime availableEndDateTime = datetime::utcNow();
 
-	Metadata meta;
+	csa::Metadata meta;
 
 	BOOST_LOG_TRIVIAL(debug) << "Initial time range: [" << availableStartDateTime << ", " << availableEndDateTime << "]";
 

@@ -1,10 +1,11 @@
-#include "../metadata.hxx"
+#include "../csa/metadata.hxx"
 
 #include <iostream>
 #include <iomanip>
 #include <json/writer.h>
 
 using namespace cdownload;
+using namespace cdownload::csa;
 
 void printDateTime(std::ostream& os, const cdownload::datetime& d)
 {
@@ -19,7 +20,6 @@ void printDateTime(std::ostream& os, const cdownload::datetime& d)
 
 int main(int argc, char** argv)
 {
-
 	std::vector<cdownload::DatasetName> datasets;
 	if (argc > 1) {
 		for (int i = 1; i < argc; ++i) {
@@ -29,7 +29,7 @@ int main(int argc, char** argv)
 		datasets.emplace_back("C4_CP_CIS-CODIF_HS_H1_MOMENTS");
 	}
 
-	Metadata meta;
+	csa::Metadata meta;
 
 	for (const auto& ds: datasets) {
 		std::cout << "-----------------------------------------" << std::endl;

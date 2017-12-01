@@ -7,7 +7,6 @@ target_link_libraries(download-sample cdownload)
 add_executable(cdf-info cdf_info_text.cxx)
 target_link_libraries(cdf-info cdownload)
 
-
 add_executable(chunk-downloader-test chunk_downloader_test.cxx)
 target_link_libraries(chunk-downloader-test cdownload)
 
@@ -16,3 +15,9 @@ target_link_libraries(averaging-test cdownload)
 
 add_executable(cache-test cache-test.cxx)
 target_link_libraries(cache-test cdownload)
+
+add_executable(omni-list-range omni_list_range.cxx)
+target_link_libraries(omni-list-range cdownload)
+
+add_executable(omni-get-data omni_get_data.cxx)
+target_link_libraries(omni-get-data cdownload)

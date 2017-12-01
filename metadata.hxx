@@ -1,6 +1,6 @@
 /*
  * cdownload lib: downloads, unpacks, and reads data from the Cluster CSA arhive
- * Copyright (C) 2016  Eugene Shalygin <eugene.shalygin@gmail.com>
+ * Copyright (C) 2017  Eugene Shalygin <eugene.shalygin@gmail.com>
  *
  * The development was partially supported by the Volkswagen Foundation
  * (VolkswagenStiftung).
@@ -20,74 +20,63 @@
  *
  */
 
-#ifndef CDOWNLOADER_METADATA_HXX
-#define CDOWNLOADER_METADATA_HXX
+#ifndef CDOWNLOAD_METADATA_HXX
+#define CDOWNLOAD_METADATA_HXX
 
-#include "util.hxx"
-#include <json/value.h>
+#include "commonDefinitions.hxx"
 
 #include <iosfwd>
 #include <stdexcept>
-#include <string>
 #include <vector>
-#include <map>
 
 namespace cdownload {
 
-	class DataSetMetadataNotFound: public std::runtime_error {
+class DataSetMetadataNotFound: public std::runtime_error {
+public:
+	DataSetMetadataNotFound(const DatasetName& name);
+};
+
+class DataSetMetadata {
+public:
+	DataSetMetadata() = default;
+	DataSetMetadata(const DatasetName& name, const string& title,
+					const datetime& minDate, const datetime& maxDate,
+					const std::vector<string>& fields);
+
+	const DatasetName& name() const {
+		return name_;
+	}
+
+	const string& title() const {
+		return title_;
+	}
+
+	const datetime& minTime() const {
+		return minDate_;
+	}
+	const datetime& maxTime() const {
+		return maxDate_;
+	}
+
+	const std::vector<string>& fields() const {
+		return fields_;
+	}
+private:
+	DatasetName name_;
+	string title_;
+	datetime minDate_;
+	datetime maxDate_;
+	std::vector<string> fields_;
+};
+
+std::ostream& operator<<(std::ostream&, const DataSetMetadata&);
+
+class Metadata {
 	public:
-		DataSetMetadataNotFound(const DatasetName& name);
-	};
-	/**
-	 * @brief Utility class for parsing JSON documents, returned by metadata CSA requests
-	 *
-	 */
-	class Metadata {
-	public:
-		Metadata();
+		virtual ~Metadata();
+		virtual DataSetMetadata dataset(const DatasetName& datasetName) const = 0;
+};
 
-		class DataSetMetadata {
-		public:
-			DataSetMetadata() = default;
-			DataSetMetadata(const DatasetName& name, const string& title,
-			                const datetime& minDate, const datetime& maxDate,
-			                const std::vector<string>& parameters);
-
-			const DatasetName& name() const {
-				return name_;
-			}
-
-			const string& title() const {
-				return title_;
-			}
-
-			const datetime& minTime() const {
-				return minDate_;
-			}
-			const datetime& maxTime() const {
-				return maxDate_;
-			}
-
-			const std::vector<string>& parameters() const {
-				return parameters_;
-			}
-		private:
-			DatasetName name_;
-			string title_;
-			datetime minDate_;
-			datetime maxDate_;
-			std::vector<string> parameters_;
-		};
-
-		DataSetMetadata dataset(const DatasetName& datasetName) const;
-
-	private:
-		DataSetMetadata downloadDatasetMetadata(const DatasetName& datasetName) const;
-		static std::vector<std::string> requiredFields();
-		std::vector<DatasetName> datasetNames_;
-		mutable std::map<DatasetName, DataSetMetadata> datasets_;
-	};
-
-	std::ostream& operator<<(std::ostream&, const Metadata::DataSetMetadata&);
 }
-#endif // CDOWNLOADER_METADATA_HXX
+
+#endif // CDOWNLOAD_METADATA_HXX

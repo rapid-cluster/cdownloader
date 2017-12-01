@@ -23,6 +23,7 @@
 #include "util.hxx"
 
 #include <boost/algorithm/string/replace.hpp>
+#include <boost/filesystem/operations.hpp>
 #include <boost/log/trivial.hpp>
 
 
@@ -212,4 +213,49 @@ std::vector<cdownload::ProductName> cdownload::expandProductsMap(const DatasetPr
 		std::copy(p.second.begin(), p.second.end(), std::back_inserter(res));
 	}
 	return res;
+}
+
+
+namespace cdownload {
+	class DownloadedChunkFile::Impl {
+	public:
+		~Impl() {
+			if (!released && !unpackedFileName.empty()) {
+				boost::filesystem::remove(unpackedFileName);
+			}
+		}
+
+		path unpackedFileName;
+		bool released = false;
+	};
+}
+
+cdownload::DownloadedChunkFile::DownloadedChunkFile(const path& fileName, bool owns)
+	: impl_ {new Impl()}
+{
+	impl_->unpackedFileName = fileName;
+	impl_->released = !owns;
+}
+
+#if 0
+cdownload::DownloadedChunkFile::DownloadedChunkFile(const path& downloadedArchiveFile,
+                                              const path& unpackedDir, const std::string& datasetId)
+	: DownloadedChunkFile()
+{
+	impl_->unpackedFileName = extractDataFile(downloadedArchiveFile, unpackedDir, datasetId);
+	boost::filesystem::remove(downloadedArchiveFile);
+}
+#endif
+
+cdownload::DownloadedChunkFile::~DownloadedChunkFile() = default;
+
+
+cdownload::path cdownload::DownloadedChunkFile::fileName() const
+{
+	return impl_->unpackedFileName;
+}
+
+void cdownload::DownloadedChunkFile::release()
+{
+	impl_->released = true;
 }

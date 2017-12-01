@@ -1,6 +1,6 @@
-#include "../downloader.hxx"
-#include "../unpacker.hxx"
-#include "../cdfreader.hxx"
+#include "../csa/downloader.hxx"
+#include "../csa/unpacker.hxx"
+#include "../cdf/reader.hxx"
 
 #include <iostream>
 #include <fstream>
@@ -21,7 +21,7 @@ int main(int /*argc*/, char** /*argv*/)
 		logging::trivial::severity >= logging::trivial::debug
 	);
 
-	DataDownloader downloader;
+	csa::DataDownloader downloader;
 
 	{
 		std::ofstream of ("/tmp/test-product-1");
@@ -38,7 +38,7 @@ int main(int /*argc*/, char** /*argv*/)
 	}
 
 
-	DownloadedProductFile prFile {"/tmp/test-product-1", unpackedDir, "C4_CP_RAP_ISPCT_CNO"};
+	DownloadedChunkFile prFile = extractAndAccureDataFile("/tmp/test-product-1", unpackedDir, "C4_CP_RAP_ISPCT_CNO");
 	std::cout << "Final file name is " << prFile.fileName() << std::endl;
 
 	CDF::File cdf {prFile};

@@ -23,8 +23,9 @@
 #ifndef CDOWNLOAD_CDFREADER_HXX
 #define CDOWNLOAD_CDFREADER_HXX
 
-#include "util.hxx"
-#include "field.hxx"
+#include "../util.hxx"
+#include "../field.hxx"
+#include "../reader.hxx"
 
 #include <iosfwd>
 #include <iterator>
@@ -151,33 +152,24 @@ namespace CDF {
 		return os;
 	}
 
-	class Reader {
+	class Reader: public cdownload::Reader {
+		using base = cdownload::Reader;
 	public:
 		Reader(const File& f, const std::vector<ProductName>& variables);
-//      Reader(const Reader&);
 
-//      Reader& operator=(const Reader&);
+		bool readRecord(std::size_t index, bool omitTimestamp) override;
+		bool readTimeStampRecord(std::size_t index) override;
 
-		bool readRecord(std::size_t index, bool omitTimestamp = false);
-		bool readTimeStampRecord(std::size_t index);
+		bool eof() const override;
 
-		const void* bufferForVariable(std::size_t variableIndex) const;
-
-		bool eof() const
-		{
-			return eof_;
-		}
-
-		std::size_t findTimestamp(double timeStamp, std::size_t startIndex);
+		std::size_t findTimestamp(double timeStamp, std::size_t startIndex) override;
 
 	private:
-		using BufferPtr = std::unique_ptr<char[]>;
+		Reader(const File& f, Info&& info, std::vector<const Variable*>&& vars, const std::vector<ProductName>& variables);
 		std::vector<const Variable*> variables_;
-		std::vector<BufferPtr> buffers_; // a buffer for each variable
 		File file_;
 		Info info_;
 		bool eof_;
-		std::size_t timeStampVariableIndex_;
 	};
 
 	template <class T>

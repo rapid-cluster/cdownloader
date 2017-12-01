@@ -28,6 +28,7 @@
 
 #include <climits>
 #include <iosfwd>
+#include <memory>
 #include <unistd.h>
 #include <cassert>
 
@@ -47,9 +48,9 @@ namespace cdownload {
 		};
 
 		FieldDesc(const ProductName& name, double fillValue, DataType dt = DataType::SignedInt,
-		          std::size_t dataSize = 0, std::size_t elementsCount = 0);
+		          std::size_t dataSize = 0, std::size_t elementsCount = 0, const string& description = string());
 		FieldDesc(const std::string& name, double fillValue, DataType dt = DataType::SignedInt,
-		          std::size_t dataSize = 0, std::size_t elementsCount = 0);
+		          std::size_t dataSize = 0, std::size_t elementsCount = 0, const string& description = string());
 
 		const ProductName& name() const
 		{
@@ -77,12 +78,18 @@ namespace cdownload {
 			return fillValue_;
 		}
 
+		const string& description() const
+		{
+			return description_;
+		}
+
 	private:
 		ProductName name_;
 		DataType dt_;
 		std::size_t dataSize_;
 		std::size_t elementCount_;
 		double fillValue_;
+		string description_;
 	};
 
 
@@ -126,6 +133,24 @@ namespace cdownload {
 		T* operator()(const std::vector<void*>& line) const
 		{
 			return data<T>(line);
+		}
+
+		template <class T, class D>
+		void setData(const std::vector<std::unique_ptr<D>>& line, T value) const
+		{
+// 			union unioncast {
+// 				D from;
+// 				T* to;
+//
+// 				unioncast(D from)
+// 					:from(from) { }
+//
+// 				T& getTo() const { return *to; }
+// 			};
+
+			*(reinterpret_cast<T*>(line[offset_].get())) = value;
+
+// 			*(line[offset_].get()) = value;
 		}
 
 		const AveragedVariable& data(const std::vector<AveragedVariable>& line) const

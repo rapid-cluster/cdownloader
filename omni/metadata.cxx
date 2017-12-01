@@ -20,33 +20,24 @@
  *
  */
 
-#include "./metadata.hxx"
+#include "metadata.hxx"
 
-#include "util.hxx"
+#include "downloader.hxx"
+#include "omnidb.hxx"
 
-#include <iostream>
+#include <algorithm>
 
-cdownload::DataSetMetadataNotFound::DataSetMetadataNotFound(const cdownload::DatasetName& name)
-	: std::runtime_error("Metadata for data set '" + name + "' could not be found.")
+cdownload::DataSetMetadata cdownload::omni::Metadata::dataset(const cdownload::DatasetName& datasetName) const
 {
-}
 
-cdownload::DataSetMetadata::DataSetMetadata(const DatasetName& name, const string& title, const datetime& minDate, const datetime& maxDate, const std::vector<string>& fields)
-	: name_{name}
-	, title_{title}
-	, minDate_{minDate}
-	, maxDate_{maxDate}
-	, fields_{fields}
-{
-}
+	Downloader downloader;
+	const auto yearRange = downloader.availableYearRange();
+	std::vector<std::string> fields;
+	const auto products = OmniTableDesc::highResOmniFields();
+	std::transform(products.begin(), products.end(), std::back_inserter(fields),
+				   [](const FieldDesc& f){return f.name().name();});
 
-std::ostream& cdownload::operator<<(std::ostream& os, const DataSetMetadata& ds)
-{
-	os << "Name: " << ds.name() << std::endl
-		<< "Title: " << ds.title() << std::endl
-		<< "Time range: [" << ds.minTime() << ", " << ds.maxTime() << ']' << std::endl
-		<< "Fields: " << put_list(ds.fields()) << std::endl;
-	return os;
+	return DataSetMetadata(datasetName, "",
+		makeDateTime(yearRange.first, 1, 1, 0, 0, 0), makeDateTime(yearRange.second, 12, 31, 23, 59, 59),
+		fields);
 }
-
-cdownload::Metadata::~Metadata() = default;

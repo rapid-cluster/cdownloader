@@ -20,33 +20,19 @@
  *
  */
 
-#include "./metadata.hxx"
+#include "dataprovider.hxx"
 
-#include "util.hxx"
+#include "datasource.hxx"
+#include "metadata.hxx"
 
-#include <iostream>
-
-cdownload::DataSetMetadataNotFound::DataSetMetadataNotFound(const cdownload::DatasetName& name)
-	: std::runtime_error("Metadata for data set '" + name + "' could not be found.")
+std::unique_ptr<cdownload::DataSource> cdownload::omni::DataProvider::datasource(const cdownload::DatasetName& /*dataset*/,
+																				 const cdownload::Parameters& parameters) const
 {
+	return std::unique_ptr<cdownload::DataSource>(new omni::DataSource(parameters));
 }
 
-cdownload::DataSetMetadata::DataSetMetadata(const DatasetName& name, const string& title, const datetime& minDate, const datetime& maxDate, const std::vector<string>& fields)
-	: name_{name}
-	, title_{title}
-	, minDate_{minDate}
-	, maxDate_{maxDate}
-	, fields_{fields}
+std::unique_ptr<cdownload::Metadata> cdownload::omni::DataProvider::metadata() const
 {
+	return std::unique_ptr<cdownload::Metadata>(new omni::Metadata());
 }
 
-std::ostream& cdownload::operator<<(std::ostream& os, const DataSetMetadata& ds)
-{
-	os << "Name: " << ds.name() << std::endl
-		<< "Title: " << ds.title() << std::endl
-		<< "Time range: [" << ds.minTime() << ", " << ds.maxTime() << ']' << std::endl
-		<< "Fields: " << put_list(ds.fields()) << std::endl;
-	return os;
-}
-
-cdownload::Metadata::~Metadata() = default;

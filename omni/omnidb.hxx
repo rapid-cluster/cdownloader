@@ -20,33 +20,36 @@
  *
  */
 
-#include "./metadata.hxx"
+#ifndef CDOWNLOAD_OMNIDB_HXX
+#define CDOWNLOAD_OMNIDB_HXX
 
-#include "util.hxx"
+#include "../field.hxx"
 
-#include <iostream>
+namespace cdownload {
+namespace omni {
+	class OmniTableDesc {
+	public:
+		OmniTableDesc();
 
-cdownload::DataSetMetadataNotFound::DataSetMetadataNotFound(const cdownload::DatasetName& name)
-	: std::runtime_error("Metadata for data set '" + name + "' could not be found.")
-{
+		static string fileNameForHRODbFile(unsigned year, bool perMinuteFile = true);
+		static string urlForHRODbFile(unsigned year, bool perMinuteFile = true);
+
+		static std::vector<FieldDesc> highResOmniFields();
+		const FieldDesc& fieldDesc(const std::string& name) const;
+
+		std::size_t fieldIndex(const ProductName& name) const;
+		const FieldDesc& operator[](std::size_t index) const;
+
+		static ProductName makeOmniHROName(const string& fieldName);
+
+		static const std::string HRODirectoryUrl;
+
+		static const DatasetName HRODatasetName;
+	private:
+		std::vector<FieldDesc> fields_;
+	};
+}
 }
 
-cdownload::DataSetMetadata::DataSetMetadata(const DatasetName& name, const string& title, const datetime& minDate, const datetime& maxDate, const std::vector<string>& fields)
-	: name_{name}
-	, title_{title}
-	, minDate_{minDate}
-	, maxDate_{maxDate}
-	, fields_{fields}
-{
-}
 
-std::ostream& cdownload::operator<<(std::ostream& os, const DataSetMetadata& ds)
-{
-	os << "Name: " << ds.name() << std::endl
-		<< "Title: " << ds.title() << std::endl
-		<< "Time range: [" << ds.minTime() << ", " << ds.maxTime() << ']' << std::endl
-		<< "Fields: " << put_list(ds.fields()) << std::endl;
-	return os;
-}
-
-cdownload::Metadata::~Metadata() = default;
+#endif // CDOWNLOAD_OMNIDB_HXX

@@ -197,6 +197,30 @@ namespace cdownload {
 	bool contains_if(const Container& c, Predicate p) {
 		return std::find_if(c.begin(), c.end(), p) != c.end();
 	}
+
+
+	/**
+	 * @brief RAI-style envelope for unpacked files
+	 *
+	 */
+	class DownloadedChunkFile {
+	public:
+		DownloadedChunkFile(const path& fileName = path(), bool owns = false);
+#if REFACTOR_REMOVE
+		DownloadedChunkFile(const path& downloadedArchiveFile, const path& unpackedDir, const std::string& datasetId);
+#endif
+		~DownloadedChunkFile();
+		path fileName() const;
+		operator path () const {
+			return fileName();
+		}
+
+		// release the guarded file, which will not be deleted by the last destructor then
+		void release();
+	private:
+		class Impl;
+		std::shared_ptr<Impl> impl_;
+	};
 }
 
 #endif // CDOWNLOADER_UTIL_HXX

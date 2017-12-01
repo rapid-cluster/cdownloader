@@ -20,24 +20,33 @@
  *
  */
 
-#ifndef CDOWNLOAD_CHUNK_DONWLOADER_HXX
-#define CDOWNLOAD_CHUNK_DONWLOADER_HXX
+#ifndef CDOWNLOAD_CSA_METADATA_HXX
+#define CDOWNLOAD_CSA_METADATA_HXX
 
-#include "util.hxx"
+
+#include "../metadata.hxx"
 
 #include <map>
-#include <memory>
 
 namespace cdownload {
+namespace csa {
 
-	struct Chunk {
-		datetime startTime;
-		datetime endTime;
-		std::map<std::string, DownloadedChunkFile> files;
+	/**
+	 * @brief Utility class for parsing JSON documents, returned by metadata CSA requests
+	 *
+	 */
+	class Metadata: public cdownload::Metadata {
+	public:
+		Metadata();
 
-		bool empty() const;
+		DataSetMetadata dataset(const DatasetName& datasetName) const override;
+
+	private:
+		DataSetMetadata downloadDatasetMetadata(const DatasetName& datasetName) const;
+		static std::vector<std::string> requiredFields();
+		std::vector<DatasetName> datasetNames_;
+		mutable std::map<DatasetName, DataSetMetadata> datasets_;
 	};
-
 }
-
-#endif // CDOWNLOAD_CHUNK_DONWLOADER_HXX
+}
+#endif // CDOWNLOAD_CSA_METADATA_HXX

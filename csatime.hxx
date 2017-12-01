@@ -160,6 +160,18 @@ namespace cdownload {
 			return *this;
 		}
 
+		struct Components {
+			long year;
+			long month;
+			long day;
+			long hour;
+			long minute;
+			long second;
+			long msec;
+		};
+
+		Components breakdown() const;
+
 	private:
 #ifndef NDEBUG
 		void updateStringRep();

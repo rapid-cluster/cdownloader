@@ -20,33 +20,40 @@
  *
  */
 
-#include "./metadata.hxx"
+#ifndef CDOWNLOAD_OMNI_DATASOURCE_HXX
+#define CDOWNLOAD_OMNI_DATASOURCE_HXX
 
-#include "util.hxx"
+#include "../datasource.hxx"
 
-#include <iostream>
+namespace cdownload {
+	class Parameters;
 
-cdownload::DataSetMetadataNotFound::DataSetMetadataNotFound(const cdownload::DatasetName& name)
-	: std::runtime_error("Metadata for data set '" + name + "' could not be found.")
-{
+namespace omni {
+
+	class Downloader;
+
+	class DataSource: public cdownload::DataSource {
+		using base = cdownload::DataSource;
+
+	public:
+		DataSource(const Parameters& parameters);
+		~DataSource();
+
+	private:
+		cdownload::DatasetChunk getNewChunk(const cdownload::datetime & min, const cdownload::datetime & max) override;
+		std::vector<DatasetChunk> loadCachedFiles(const path& dir);
+
+		path cacheDir_;
+
+		std::unique_ptr<Downloader> downloader_;
+
+		datetime currentChunkStartTime_;
+		datetime lastServedChunkEndTime_;
+
+		DatasetChunk lastServedChunk_;
+		path tempDir_;
+	};
+}
 }
 
-cdownload::DataSetMetadata::DataSetMetadata(const DatasetName& name, const string& title, const datetime& minDate, const datetime& maxDate, const std::vector<string>& fields)
-	: name_{name}
-	, title_{title}
-	, minDate_{minDate}
-	, maxDate_{maxDate}
-	, fields_{fields}
-{
-}
-
-std::ostream& cdownload::operator<<(std::ostream& os, const DataSetMetadata& ds)
-{
-	os << "Name: " << ds.name() << std::endl
-		<< "Title: " << ds.title() << std::endl
-		<< "Time range: [" << ds.minTime() << ", " << ds.maxTime() << ']' << std::endl
-		<< "Fields: " << put_list(ds.fields()) << std::endl;
-	return os;
-}
-
-cdownload::Metadata::~Metadata() = default;
+#endif // CDOWNLOAD_OMNI_DATASOURCE_HXX

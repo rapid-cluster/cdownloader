@@ -21,7 +21,7 @@
 #define CDOWNLOAD_DRIVER_H
 
 #include "parameters.hxx"
-#include "unpacker.hxx"
+#include "csa/unpacker.hxx"
 
 #include <map>
 #include <memory>
@@ -31,7 +31,10 @@ namespace CDF {
 	class Info;
 }
 
+namespace csa {
 	class DataDownloader;
+}
+
 	class FieldDesc;
 	class Output;
 	class Writer;

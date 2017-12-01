@@ -20,7 +20,7 @@
  *
  */
 
-#include "cdfreader.hxx"
+#include "./reader.hxx"
 
 #include <cdf.h>
 
@@ -562,25 +562,20 @@ cdownload::FieldDesc cdownload::CDF::Info::describeVariable(const cdownload::CDF
 }
 
 cdownload::CDF::Reader::Reader(const cdownload::CDF::File& f, const std::vector<ProductName>& variables)
-	: variables_(variables.size())
-	, buffers_(variables.size())
+	: Reader(f, Info(f), std::vector<const Variable*>(variables.size()), variables)
+{
+}
+
+
+cdownload::CDF::Reader::Reader(const cdownload::CDF::File& f, Info&& info, std::vector<const Variable*>&& vars,
+							   const std::vector<ProductName>& variables)
+	: base(variables, [&](const ProductName& name) -> FoundField {return {info.variable(name.name()), static_cast<std::size_t>(-1)};},
+			 [&](std::size_t i, const ProductName& name, const FoundField&){vars[i] = &f.variable(name.name());}, info.timestampVariableName())
+	, variables_(vars)
 	, file_{f}
 	, info_{file_}
 	, eof_{false}
-	, timeStampVariableIndex_{static_cast<std::size_t>(-1)}
 {
-	const auto timeStampVariableName = info_.timestampVariableName();
-	for (std::size_t i = 0; i< variables.size(); ++i) {
-		const ProductName& varName = variables[i];
-		const FieldDesc fd = info_.variable(varName.name());
-		const std::size_t requiredBufferSize = fd.dataSize() * fd.elementCount();
-		buffers_[i] = std::unique_ptr<char[]>(new char[requiredBufferSize]);
-		variables_[i] = &file_.variable(varName.name());
-		if (timeStampVariableName == varName.name()) {
-			timeStampVariableIndex_ = i;
-		}
-	}
-	assert(timeStampVariableIndex_ != static_cast<std::size_t>(-1));
 }
 
 bool cdownload::CDF::Reader::readRecord(std::size_t index, bool omitTimeStamp)
@@ -613,9 +608,9 @@ bool cdownload::CDF::Reader::readTimeStampRecord(std::size_t index)
 	return read != 0;
 }
 
-const void* cdownload::CDF::Reader::bufferForVariable(std::size_t variableIndex) const
+bool cdownload::CDF::Reader::eof() const
 {
-	return buffers_.at(variableIndex).get();
+	return eof_;
 }
 
 std::size_t cdownload::CDF::Reader::findTimestamp(double timeStamp, std::size_t startIndex)

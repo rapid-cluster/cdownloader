@@ -20,33 +20,27 @@
  *
  */
 
-#include "./metadata.hxx"
+#include "./reader.hxx"
 
-#include "util.hxx"
-
-#include <iostream>
-
-cdownload::DataSetMetadataNotFound::DataSetMetadataNotFound(const cdownload::DatasetName& name)
-	: std::runtime_error("Metadata for data set '" + name + "' could not be found.")
+cdownload::Reader::Reader(const std::vector<ProductName>& variables,
+						  cdownload::Reader::DescriptionForVariable descriptor, cdownload::Reader::VariableCallback cb,
+							const ProductName& timeStampVariableName)
+	: buffers_(variables.size())
+	, timeStampVariableIndex_{static_cast<std::size_t>(-1)}
 {
+	for (std::size_t i = 0; i < variables.size(); ++i) {
+		const ProductName& varName = variables[i];
+		const FoundField f = descriptor(varName);
+		const std::size_t requiredBufferSize = f.description.dataSize() * f.description.elementCount();
+		buffers_[i] = std::unique_ptr<char[]>(new char[requiredBufferSize]);
+		cb(i, varName, f);
+		if (timeStampVariableName == varName.name()) {
+			timeStampVariableIndex_ = i;
+		}
+	}
+	assert(timeStampVariableIndex_ != static_cast<std::size_t>(-1));
 }
 
-cdownload::DataSetMetadata::DataSetMetadata(const DatasetName& name, const string& title, const datetime& minDate, const datetime& maxDate, const std::vector<string>& fields)
-	: name_{name}
-	, title_{title}
-	, minDate_{minDate}
-	, maxDate_{maxDate}
-	, fields_{fields}
-{
-}
 
-std::ostream& cdownload::operator<<(std::ostream& os, const DataSetMetadata& ds)
-{
-	os << "Name: " << ds.name() << std::endl
-		<< "Title: " << ds.title() << std::endl
-		<< "Time range: [" << ds.minTime() << ", " << ds.maxTime() << ']' << std::endl
-		<< "Fields: " << put_list(ds.fields()) << std::endl;
-	return os;
-}
+cdownload::Reader::~Reader() = default;
 
-cdownload::Metadata::~Metadata() = default;

@@ -20,33 +20,39 @@
  *
  */
 
-#include "./metadata.hxx"
+#ifndef CDOWNLOAD_DATAPROVIDER_HXX
+#define CDOWNLOAD_DATAPROVIDER_HXX
 
-#include "util.hxx"
+#include "datasource.hxx"
+#include "metadata.hxx"
 
-#include <iostream>
+#include <map>
+#include <memory>
 
-cdownload::DataSetMetadataNotFound::DataSetMetadataNotFound(const cdownload::DatasetName& name)
-	: std::runtime_error("Metadata for data set '" + name + "' could not be found.")
-{
+namespace cdownload {
+
+	class Parameters;
+
+	class DataProvider {
+	public:
+		virtual std::unique_ptr<Metadata> metadata() const = 0;
+		virtual std::unique_ptr<DataSource> datasource(const DatasetName& dataset, const Parameters& parameters) const = 0;
+
+		virtual ~DataProvider();
+	};
+
+	class DataProviderRegistry {
+	public:
+		static DataProviderRegistry& instance();
+
+		const DataProvider& provider(const std::string& name) const;
+
+		void registerProvider(const std::string& name, std::unique_ptr<DataProvider>&& provider);
+		std::unique_ptr<DataProvider> unregisterProvider(const std::string& name);
+
+	private:
+		std::map<std::string, std::unique_ptr<DataProvider>> providers_;
+	};
 }
 
-cdownload::DataSetMetadata::DataSetMetadata(const DatasetName& name, const string& title, const datetime& minDate, const datetime& maxDate, const std::vector<string>& fields)
-	: name_{name}
-	, title_{title}
-	, minDate_{minDate}
-	, maxDate_{maxDate}
-	, fields_{fields}
-{
-}
-
-std::ostream& cdownload::operator<<(std::ostream& os, const DataSetMetadata& ds)
-{
-	os << "Name: " << ds.name() << std::endl
-		<< "Title: " << ds.title() << std::endl
-		<< "Time range: [" << ds.minTime() << ", " << ds.maxTime() << ']' << std::endl
-		<< "Fields: " << put_list(ds.fields()) << std::endl;
-	return os;
-}
-
-cdownload::Metadata::~Metadata() = default;
+#endif // CDOWNLOAD_DATAPROVIDER_HXX

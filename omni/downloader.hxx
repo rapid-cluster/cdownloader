@@ -20,33 +20,24 @@
  *
  */
 
-#include "./metadata.hxx"
+#ifndef CDOWNLOAD_OMNI_DOWNLOADER_HXX
+#define CDOWNLOAD_OMNI_DOWNLOADER_HXX
 
-#include "util.hxx"
+#include "../downloader.hxx"
 
-#include <iostream>
+namespace cdownload {
+namespace omni {
 
-cdownload::DataSetMetadataNotFound::DataSetMetadataNotFound(const cdownload::DatasetName& name)
-	: std::runtime_error("Metadata for data set '" + name + "' could not be found.")
-{
+	class Downloader: public cdownload::curl::DownloadManager {
+		using base = cdownload::curl::DownloadManager;
+	public:
+		std::pair<unsigned short, unsigned short> availableYearRange();
+		void beginDownloading(unsigned short year, std::ostream& output);
+
+	private:
+
+	};
+}
 }
 
-cdownload::DataSetMetadata::DataSetMetadata(const DatasetName& name, const string& title, const datetime& minDate, const datetime& maxDate, const std::vector<string>& fields)
-	: name_{name}
-	, title_{title}
-	, minDate_{minDate}
-	, maxDate_{maxDate}
-	, fields_{fields}
-{
-}
-
-std::ostream& cdownload::operator<<(std::ostream& os, const DataSetMetadata& ds)
-{
-	os << "Name: " << ds.name() << std::endl
-		<< "Title: " << ds.title() << std::endl
-		<< "Time range: [" << ds.minTime() << ", " << ds.maxTime() << ']' << std::endl
-		<< "Fields: " << put_list(ds.fields()) << std::endl;
-	return os;
-}
-
-cdownload::Metadata::~Metadata() = default;
+#endif // CDOWNLOAD_OMNI_DOWNLOADER_HXX

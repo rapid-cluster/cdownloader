@@ -22,84 +22,18 @@
 
 #include "./datasource.hxx"
 
-#include "metadata.hxx"
-#include "downloader.hxx"
-#include "chunkdownloader.hxx"
-#include "parameters.hxx"
-#include "unpacker.hxx"
-
-#include <boost/filesystem/operations.hpp>
-#include <boost/lexical_cast.hpp>
 #include <boost/log/trivial.hpp>
-
-#include <algorithm>
-#include <regex>
-
-namespace {
-	const cdownload::timeduration CSA_GRANULARITY = cdownload::timeduration(0,0,1); // 1 second
-}
-
-namespace cdownload {
-	inline bool operator<(const cdownload::DatasetChunk& left, const cdownload::DatasetChunk& right)
-	{
-		return left.startTime < right.startTime;
-	}
-}
 
 bool cdownload::DatasetChunk::empty() const
 {
 	return file.empty();
 }
 
-cdownload::DataSource::DataSource(const DatasetName& dataset, const Parameters& parameters,
-		                  const cdownload::Metadata& meta)
-	: dsName_{dataset}
-	, cacheDir_{parameters.cacheDir()}
-	, downloader_{}
-	, eof_{false}
+cdownload::DataSource::DataSource(const std::string& name, const timeduration& timeGranularity)
+	: eof_{false}
+	, timeGranularity_{timeGranularity}
+	, name_{name}
 {
-	if (!cacheDir_.empty()) {
-		loadCachedFiles(dsName_, cacheDir_);
-	}
-
-	if (parameters.downloadMissingData()) {
-		auto dsMeta = meta.dataset(dataset);
-		minAvailableTime_ = dsMeta.minTime();
-		maxAvailableTime_ = dsMeta.maxTime();
-		dataDownloader_.reset(new DataDownloader());
-		downloader_.reset(new ChunkDownloader(parameters.workDir(), cacheDir_, *dataDownloader_,
-		                                      {dsName_}, minAvailableTime_, maxAvailableTime_));
-	} else {
-		// we look for the longest continious range in the cache
-		if (!cachedFiles_.size()) {
-			minAvailableTime_ = maxAvailableTime_ = datetime();
-		} else {
-			minAvailableTime_ = cachedFiles_[0].startTime;
-			maxAvailableTime_ = cachedFiles_[0].endTime;
-			timeduration maxDuration = maxAvailableTime_ - maxAvailableTime_;
-			datetime chunkStart = minAvailableTime_;
-			datetime chunkEnd = maxAvailableTime_;
-			for (std::size_t i = 1; i < cachedFiles_.size(); ++i) {
-				const bool isCurrentChunkAdjacent =
-					cachedFiles_[i].startTime - chunkEnd <= CSA_GRANULARITY;
-				chunkEnd = cachedFiles_[i].endTime;
-				if (!isCurrentChunkAdjacent) {
-					chunkStart = cachedFiles_[i].startTime;
-				}
-				if (chunkEnd - chunkStart > maxDuration) {
-					minAvailableTime_ = chunkStart;
-					maxAvailableTime_ = chunkEnd;
-					maxDuration = chunkEnd - chunkStart;
-				}
-			}
-		}
-	}
-
-	BOOST_LOG_TRIVIAL(trace) << "Datasource for '" << dataset << "' detected available time range:"
-		<< '[' << minAvailableTime_ << ',' << maxAvailableTime_<<']';
-
-	currentChunkStartTime_ = minAvailableTime_;
-	lastServedChunkEndTime_ = currentChunkStartTime_ - CSA_GRANULARITY;
 }
 
 cdownload::DataSource::~DataSource() = default;
@@ -114,114 +48,97 @@ cdownload::datetime cdownload::DataSource::maxAvailableTime() const
 	return maxAvailableTime_;
 }
 
-cdownload::DatasetChunk cdownload::DataSource::nextChunk()
-{
-	BOOST_LOG_TRIVIAL(trace) << "Datasource for '" << dsName_ << "' received request for next chunk:"
-		<< " last served chunk end time is " << lastServedChunkEndTime_;
-	BOOST_LOG_TRIVIAL(trace) << "Datasource for '" << dsName_ << "': max available time is "
-		<<  maxAvailableTime();
-
-	if (lastServedChunkEndTime_ >= maxAvailableTime()) {
-		eof_ = true;
-		return {};
-	}
-	// step 1: find next cached chunk past lastServedChunkEndTime_
-	// TODO: implement cases when cached chunks intersect
-	auto nexCachedChunkIter = std::find_if(cachedFiles_.begin(), cachedFiles_.end(),
-		[this](const DatasetChunk& c){
-			return c.endTime > this->lastServedChunkEndTime_ + CSA_GRANULARITY;
-		});
-
-	// step 2: cache is exhausted, we have to download data if we can
-	if (nexCachedChunkIter == cachedFiles_.end()) {
-		if (!downloader_) {
-			eof_ = true;
-			return {};
-		} else {
-			downloader_->setTimeRange(lastServedChunkEndTime_ + CSA_GRANULARITY, maxAvailableTime_);
-			return downloadNextChunk();
-		}
-	} else {
-		if (lastServedChunkEndTime_ + CSA_GRANULARITY < nexCachedChunkIter->startTime) {
-			// there is a gap in cache, data have to be downloaded
-			if (!downloader_) {
-				throw std::logic_error("Data gap found when downloading is not permitted");
-			} else {
-				downloader_->setTimeRange(lastServedChunkEndTime_ + CSA_GRANULARITY,
-				                          nexCachedChunkIter->startTime - CSA_GRANULARITY);
-				return downloadNextChunk();
-			}
-		} else {
-			lastServedChunkEndTime_ = nexCachedChunkIter->endTime;
-			return *nexCachedChunkIter;
-		}
-	}
-}
-
-cdownload::DatasetChunk cdownload::DataSource::downloadNextChunk()
-{
-	auto downloadedChunk = downloader_->nextChunk();
-	if (downloadedChunk.empty() && downloader_->eof()) {
-		eof_ = true;
-		return {};
-	}
-	lastServedChunkEndTime_ = downloadedChunk.endTime;
-	downloadedChunk.files[dsName_].release();
-	return {downloadedChunk.startTime, downloadedChunk.endTime, downloadedChunk.files[dsName_]};
-}
-
-
 bool cdownload::DataSource::eof() const
 {
 	return eof_;
 }
 
-void cdownload::DataSource::setNextChunkStartTime(const datetime& startTime)
+void cdownload::DataSource::setEof(bool eof)
+{
+	eof_ = eof;
+}
+
+void cdownload::DataSource::setAvailableTimeRange(const cdownload::datetime& min, const cdownload::datetime& max)
+{
+	minAvailableTime_ = min;
+	maxAvailableTime_ = max;
+
+	currentChunkStartTime_ = minAvailableTime_;
+	lastServedChunkEndTime_ = currentChunkStartTime_ - timeGranularity();
+
+	BOOST_LOG_TRIVIAL(trace) << "Datasource for '" << name_ << "' detected available time range:"
+		<< '[' << this->minAvailableTime() << ',' << this->maxAvailableTime()<<']';
+}
+
+void cdownload::DataSource::setNextChunkStartTime(const cdownload::datetime& startTime)
 {
 	if (startTime >= minAvailableTime() && startTime <= maxAvailableTime()) {
 		currentChunkStartTime_ = startTime;
-		lastServedChunkEndTime_ = currentChunkStartTime_ - CSA_GRANULARITY;
-		eof_ = false;
+		lastServedChunkEndTime_ = currentChunkStartTime_ - timeGranularity();
+		setEof(false);
 	} else {
 		throw std::logic_error("Requested chunk start time is not within available time range");
 	}
 }
 
-void cdownload::DataSource::loadCachedFiles(const DatasetName& dataset, const path& dir)
+cdownload::DatasetChunk cdownload::DataSource::nextChunk()
 {
-	namespace fs = boost::filesystem;
-	cachedFiles_.clear();
+	BOOST_LOG_TRIVIAL(trace) << "Datasource for '" << name_ << "' received request for next chunk:"
+		<< " last served chunk end time is " << lastServedChunkEndTime_;
+	BOOST_LOG_TRIVIAL(trace) << "Datasource for '" << name_ << "': max available time is "
+		<<  maxAvailableTime();
 
-	// filename example
-	// C4_CP_CIS-CODIF_HS_H1_MOMENTS__20010130_000000_20151231_235959_V161019.cdf
+	if (lastServedChunkEndTime_ >= maxAvailableTime()) {
+		setEof();
+		return {};
+	}
+	// step 1: find next cached chunk past lastServedChunkEndTime_
+	// TODO: implement handling of intersecting cached chunks
+	auto nexCachedChunkIter = std::find_if(cachedFiles_.begin(), cachedFiles_.end(),
+		[this](const DatasetChunk& c){
+			return c.endTime > this->lastServedChunkEndTime_ + timeGranularity_;
+		});
 
-	std::regex cdfNameRx (dataset +
-		R"(__(\d\d\d\d)(\d\d)(\d\d)_(\d\d)(\d\d)(\d\d)_(\d\d\d\d)(\d\d)(\d\d)_(\d\d)(\d\d)(\d\d)_V\d+\.cdf)");
+	// step 2: cache is exhausted, we have to download data if we can
+	DatasetChunk newChunk;
+	if (nexCachedChunkIter == cachedFiles_.end()) {
+		newChunk = getNewChunk(lastServedChunkEndTime_ + timeGranularity(), maxAvailableTime());
+		if (newChunk.empty()) {
+			setEof();
+			return {};
+		} else {
+			return newChunk;
+		}
+#if 0
+		if (!downloader_) {
+			setEof();
+			return {};
+		} else {
+			downloader_->setTimeRange(lastServedChunkEndTime_ + timeGranularity(), maxAvailableTime());
+			return downloadNextChunk();
+		}
+#endif
+	} else {
+		if (lastServedChunkEndTime_ + timeGranularity() < nexCachedChunkIter->startTime) {
+			// there is a gap in cache, data have to be downloaded
+			newChunk = getNewChunk(lastServedChunkEndTime_ + timeGranularity(),
+												nexCachedChunkIter->startTime - timeGranularity());
 
-	for (fs::directory_iterator it(dir);
-		 it != fs::directory_iterator(); ++it) {
-		string fn = it->path().filename().string();
-		std::smatch match;
-		if (std::regex_match(fn, match, cdfNameRx)) {
-			unsigned int yearBegin = boost::lexical_cast<unsigned int>(match[1]);
-			unsigned int monthBegin = boost::lexical_cast<unsigned int>(match[2]);
-			unsigned int dayBegin = boost::lexical_cast<unsigned int>(match[3]);
-			unsigned int hoursBegin = boost::lexical_cast<unsigned int>(match[4]);
-			unsigned int minutesBegin = boost::lexical_cast<unsigned int>(match[5]);
-			unsigned int secondsBegin = boost::lexical_cast<unsigned int>(match[6]);
-
-			unsigned int yearEnd = boost::lexical_cast<unsigned int>(match[7]);
-			unsigned int monthEnd = boost::lexical_cast<unsigned int>(match[8]);
-			unsigned int dayEnd = boost::lexical_cast<unsigned int>(match[9]);
-			unsigned int hoursEnd = boost::lexical_cast<unsigned int>(match[10]);
-			unsigned int minutesEnd = boost::lexical_cast<unsigned int>(match[11]);
-			unsigned int secondsEnd = boost::lexical_cast<unsigned int>(match[12]);
-
-			datetime begin = makeDateTime(yearBegin, monthBegin, dayBegin, hoursBegin, minutesBegin, secondsBegin);
-			datetime end = makeDateTime(yearEnd, monthEnd, dayEnd, hoursEnd, minutesEnd, secondsEnd);
-			cachedFiles_.push_back({begin, end, it->path()});
+			if (newChunk.empty()) {
+				throw std::logic_error("Data gap was found when downloading is not permitted");
+			}
+			return newChunk;
+		} else {
+			lastServedChunkEndTime_ = nexCachedChunkIter->endTime;
+			return *nexCachedChunkIter;
 		}
 	}
 
-	std::sort(cachedFiles_.begin(), cachedFiles_.end());
+	lastServedChunkEndTime_ = newChunk.endTime;
+	return newChunk;
+}
+
+void cdownload::DataSource::setCache(std::vector<DatasetChunk>&& cache)
+{
+	cachedFiles_ = cache;
 }

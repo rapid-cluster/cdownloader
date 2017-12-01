@@ -24,14 +24,11 @@
 #define CDOWNLOAD_DATASOURCE_HXX
 
 #include "commonDefinitions.hxx"
+
 #include <memory>
+#include <vector>
 
 namespace cdownload {
-
-	class Metadata;
-	class Parameters;
-	class ChunkDownloader;
-	class DataDownloader;
 
 	struct DatasetChunk {
 		datetime startTime;
@@ -41,43 +38,49 @@ namespace cdownload {
 		bool empty() const;
 	};
 
+	inline bool operator<(const DatasetChunk& left, const DatasetChunk& right)
+	{
+		return left.startTime < right.startTime;
+	}
+
 	class DataSource {
 	public:
-		DataSource(const DatasetName& dataset, const Parameters& parameters, const Metadata& meta);
-		~DataSource();
-#if 0
-		DataSource(const DataSource& other);
-		DataSource(DataSource&&) = default;
-		DataSource& operator=(const DataSource& other);
-#endif
+		virtual ~DataSource();
 
 		datetime minAvailableTime() const;
 		datetime maxAvailableTime() const;
 
 		DatasetChunk nextChunk();
-		void reset();
 		bool eof() const;
 		void setNextChunkStartTime(const datetime& startTime);
 
+	protected:
+		DataSource(const std::string& name, const timeduration& timeGranularity);
+
+		void setAvailableTimeRange(const datetime& min, const datetime& max);
+		void setEof(bool eof = true);
+		void setCache(std::vector<DatasetChunk>&& cache);
+
+		timeduration timeGranularity() const {
+			return timeGranularity_;
+		}
+
 	private:
-		void loadCachedFiles(const DatasetName& dataset, const path& dir);
-		DatasetChunk downloadNextChunk();
+		virtual DatasetChunk getNewChunk(const datetime& min, const datetime& max) = 0;
 
-		DatasetName dsName_;
-		path cacheDir_;
-
-		std::unique_ptr<DataDownloader> dataDownloader_;
-		std::unique_ptr<ChunkDownloader> downloader_;
-		std::vector<DatasetChunk> cachedFiles_;
 		datetime minAvailableTime_;
 		datetime maxAvailableTime_;
-
+		bool eof_;
 
 		datetime currentChunkStartTime_;
 		datetime lastServedChunkEndTime_;
 
-		DatasetChunk lastServedChunk_;
-		bool eof_;
+// 		DatasetChunk lastServedChunk_;
+
+		std::vector<DatasetChunk> cachedFiles_;
+
+		timeduration timeGranularity_;
+		std::string name_;
 	};
 }
 

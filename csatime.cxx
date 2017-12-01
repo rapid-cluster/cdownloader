@@ -213,6 +213,13 @@ cdownload::DateTime cdownload::makeDateTime(unsigned int year, unsigned int mont
 	return {res};
 }
 
+cdownload::DateTime::Components cdownload::DateTime::breakdown() const
+{
+	Components res;
+	EPOCHbreakdown(milliseconds(), &res.year, &res.month, &res.day, &res.hour, &res.minute, &res.second, &res.msec);
+	return res;
+}
+
 #ifndef NDEBUG
 void cdownload::DateTime::updateStringRep()
 {

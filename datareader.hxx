@@ -24,7 +24,7 @@
 #define CDOWNLOAD_DATAREADER_HXX
 
 #include "average.hxx"
-#include "cdfreader.hxx"
+#include "cdf/reader.hxx"
 #include "filter.hxx"
 #include <memory>
 

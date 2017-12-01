@@ -23,9 +23,7 @@
 #ifndef CDWONLOAD_UPACKER_HXX
 #define CDWONLOAD_UPACKER_HXX
 
-#include "util.hxx"
-
-#include <memory>
+#include "../util.hxx"
 
 namespace cdownload {
 
@@ -35,26 +33,9 @@ namespace cdownload {
 	                     const boost::filesystem::path& dirName,
 	                     const std::string& datasetId, const std::string& fileId = "");
 
-	/**
-	 * @brief RAI-style envelope for @ref extractDataFile
-	 *
-	 */
-	class DownloadedProductFile {
-	public:
-		DownloadedProductFile();
-		DownloadedProductFile(const path& downloadedArchiveFile, const path& unpackedDir, const std::string& datasetId);
-		~DownloadedProductFile();
-		path fileName() const;
-		operator path () const {
-			return fileName();
-		}
-
-		// release the guarded file, which will not be deleted by the last destructor then
-		void release();
-	private:
-		class Impl;
-		std::shared_ptr<Impl> impl_;
-	};
+	DownloadedChunkFile extractAndAccureDataFile(const boost::filesystem::path& fileName,
+	                     const boost::filesystem::path& dirName,
+	                     const std::string& datasetId, const std::string& fileId = "");
 }
 
 #endif // CDWONLOAD_UPACKER_HXX

@@ -20,33 +20,36 @@
  *
  */
 
-#include "./metadata.hxx"
+#include "dataprovider.hxx"
 
-#include "util.hxx"
+#include <utility>
 
-#include <iostream>
+cdownload::DataProvider::~DataProvider() = default;
 
-cdownload::DataSetMetadataNotFound::DataSetMetadataNotFound(const cdownload::DatasetName& name)
-	: std::runtime_error("Metadata for data set '" + name + "' could not be found.")
+cdownload::DataProviderRegistry& cdownload::DataProviderRegistry::instance()
 {
+	static DataProviderRegistry instance;
+	return instance;
 }
 
-cdownload::DataSetMetadata::DataSetMetadata(const DatasetName& name, const string& title, const datetime& minDate, const datetime& maxDate, const std::vector<string>& fields)
-	: name_{name}
-	, title_{title}
-	, minDate_{minDate}
-	, maxDate_{maxDate}
-	, fields_{fields}
+const cdownload::DataProvider& cdownload::DataProviderRegistry::provider(const std::string& name) const
 {
+	return *providers_.at(name);
 }
 
-std::ostream& cdownload::operator<<(std::ostream& os, const DataSetMetadata& ds)
+void cdownload::DataProviderRegistry::registerProvider(const std::string& name, std::unique_ptr<DataProvider>&& provider)
 {
-	os << "Name: " << ds.name() << std::endl
-		<< "Title: " << ds.title() << std::endl
-		<< "Time range: [" << ds.minTime() << ", " << ds.maxTime() << ']' << std::endl
-		<< "Fields: " << put_list(ds.fields()) << std::endl;
-	return os;
+	providers_[name] = std::move(provider);
 }
 
-cdownload::Metadata::~Metadata() = default;
+std::unique_ptr<cdownload::DataProvider> cdownload::DataProviderRegistry::unregisterProvider(const std::string& name)
+{
+	auto it = providers_.find(name);
+	if (it == providers_.end()) {
+		return {};
+	}
+
+	std::unique_ptr<cdownload::DataProvider> res = std::move(it->second);
+	providers_.erase(it);
+	return res;
+}

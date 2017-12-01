@@ -1,4 +1,4 @@
-#include "../metadata.hxx"
+#include "../csa/metadata.hxx"
 #include "../util.hxx"
 #include <iostream>
 #include <sstream>
@@ -33,7 +33,7 @@ int main(int argc, char** argv) {
 	}
 
 	try {
-		cdownload::Metadata meta;
+		cdownload::csa::Metadata meta;
 
 		for (int i = 1; i < argc; ++i) {
 			cdownload::DatasetName ds(argv[i]);

@@ -51,12 +51,17 @@ namespace cdownload {
 	class RunningRequest {
 	public:
 
+		enum class Protocol {
+			FTP,
+			HTTP
+		};
+
 		void scheduleCancelling();
 
 		~RunningRequest();
 
 		void beginDownloading(std::ostream& output);
-		int httpStatusCode() const;
+		int statusCode() const;
 		bool completedSuccefully() const;
 
 		void waitForFinished();
@@ -71,6 +76,8 @@ namespace cdownload {
 		bool isCompleted() const {
 			return completed_;
 		}
+
+		Protocol protocol() const;
 	private:
 		RunningRequest(const std::string& url, DownloadManager* manager);
 
@@ -88,7 +95,7 @@ namespace cdownload {
 		bool completedSuccefully_ = false;
 		std::string errorMessage_;
 		std::thread downloadingThread_;
-		long httpStatusCode_;
+		long protocolStatusCode_;
 		std::string url_;
 		friend class DownloadManager;
 		DownloadManager* manager_;
@@ -108,18 +115,18 @@ namespace cdownload {
 			DownloadError(const std::string& url, const std::string& message);
 		};
 
-		class HTTPError: public DownloadError {
+		class TransferError: public DownloadError {
 		public:
-			HTTPError(const std::string& url, int httpStatusCode);
+			TransferError(const std::string& url, int statusCode);
 
-			int httpStatusCode() const {
-				return httpStatusCode_;
+			int statusCode() const {
+				return statusCode_;
 			}
 
 		private:
-			int httpStatusCode_;
+			static std::string protocolName(const std::string& url);
+			int statusCode_;
 		};
-
 
 		RunningRequestWeakPtr beginDownloading(const std::string& url, std::ostream& output);
 		void cancelAllRequests();
@@ -138,60 +145,8 @@ namespace cdownload {
 		std::atomic<bool> ignoreDownloadingErrors_;
 		std::vector<std::string> completedRequests_;
 	};
-	}
 
-
-	/**
-	 * @brief Utility class for accessing the CSA archive
-	 *
-	 * This class loads CSACOOKIE and does HTTP requests via libcurl
-	 *
-	 */
-	class CSADownloader: public curl::DownloadManager {
-	public:
-		CSADownloader(bool addCookie = true);
-
-		std::string encode(const std::string& s) const;
-
-	private:
-		std::string decorateUrl(const std::string & url) const override;
-		bool addCookie_;
-		std::string cookie_;
-	};
-
-	/**
-	 * @brief Encapsulates data downloading via synchronous requests
-	 *
-	 */
-	class DataDownloader: public CSADownloader {
-	public:
-		DataDownloader() = default;
-		void beginDownloading(const std::string& datasetName, std::ostream& output,
-		              const datetime& startDate, const datetime& endDate);
-
-	private:
-		std::string buildRequest(const std::string& datasetName,
-		                         const datetime& startDate, const datetime& endDate) const;
-
-		static const char* DATASET_ID_PARAMETER_NAME;
-	};
-
-	/**
-	 * @brief Encapsulates metadata downloading
-	 *
-	 */
-	class MetadataDownloader: public CSADownloader {
-	public:
-		MetadataDownloader();
-		std::vector<DatasetName> downloadDatasetsList();
-		Json::Value download(const std::vector<DatasetName>& datasets, const std::vector<std::string>& fields);
-
-	private:
-		static void writeConditions(std::ostream& os,
-		                            const std::string& keyName, const std::string& operation,
-		                            const std::vector<std::string>& values);
-		static const char* DATASET_ID_QUERY_PARAMETER;
-	};
+}
 }
 
 #endif // CDOWNLOADER_DOWNLOADER_HXX

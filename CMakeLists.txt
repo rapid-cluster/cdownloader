@@ -36,66 +36,94 @@ check_include_file_cxx(pwd.h HAVE_PWD_H)
 include(TestBigEndian)
 test_big_endian(SYSTEN_BIG_ENDIAN)
 
-set(cdownloader_SOURCES
-average.hxx
-average.cxx
-cdfreader.hxx
-cdfreader.cxx
-commonDefinitions.hxx
-chunkdownloader.hxx
-chunkdownloader.cxx
-csatime.hxx
-csatime.cxx
-datareader.hxx
-datareader.cxx
-datasource.hxx
-datasource.cxx
-downloader.cxx
-downloader.hxx
-expanding.hxx
-expanding.cxx
-field.hxx
-field.cxx
-fieldbuffer.hxx
-fieldbuffer.cxx
-filter.hxx
-filter.cxx
-floatcomparison.hxx
-epochrange.hxx
-metadata.cxx
-metadata.hxx
-unpacker.hxx
-unpacker.cxx
-util.hxx
-util.cxx
-writer.hxx
-writer.cxx
-parameters.hxx
-parameters.cxx
-filters/baddata.hxx
-filters/baddata.cxx
-filters/blankdata.hxx
-filters/blankdata.cxx
-filters/density.hxx
-filters/density.cxx
-filters/plasmasheet.hxx
-filters/plasmasheet.cxx
-filters/nightside.hxx
-filters/nightside.cxx
-filters/quality.hxx
-filters/quality.cxx
-filters/timefilter.hxx
-filters/timefilter.cxx
-writers/ASCIIWriter.hxx
-writers/ASCIIWriter.cxx
-writers/BinaryWriter.hxx
-writers/BinaryWriter.cxx
-)
-
 include_directories(SYSTEM ${CURL_INCLUDE_DIRS} ${LibArchive_INCLUDE_DIRS})
 add_definitions(-DBOOST_LOG_DYN_LINK=1)
 
-add_library(cdownload STATIC ${cdownloader_SOURCES})
+add_library(cdownload STATIC "")
+
+target_sources(cdownload
+	PRIVATE
+		average.hxx
+		average.cxx
+		commonDefinitions.hxx
+		csatime.hxx
+		csatime.cxx
+		chunkdownloader.hxx
+		chunkdownloader.cxx
+		dataprovider.hxx
+		dataprovider.cxx
+		datareader.hxx
+		datareader.cxx
+		datasource.hxx
+		datasource.cxx
+		downloader.cxx
+		downloader.hxx
+		expanding.hxx
+		expanding.cxx
+		field.hxx
+		field.cxx
+		fieldbuffer.hxx
+		fieldbuffer.cxx
+		filter.hxx
+		filter.cxx
+		floatcomparison.hxx
+		epochrange.hxx
+		metadata.hxx
+		metadata.cxx
+		util.hxx
+		util.cxx
+		writer.hxx
+		writer.cxx
+		parameters.hxx
+		parameters.cxx
+		reader.hxx
+		reader.cxx
+		filters/baddata.hxx
+		filters/baddata.cxx
+		filters/blankdata.hxx
+		filters/blankdata.cxx
+		filters/density.hxx
+		filters/density.cxx
+		filters/plasmasheet.hxx
+		filters/plasmasheet.cxx
+		filters/nightside.hxx
+		filters/nightside.cxx
+		filters/quality.hxx
+		filters/quality.cxx
+		filters/timefilter.hxx
+		filters/timefilter.cxx
+		writers/ASCIIWriter.hxx
+		writers/ASCIIWriter.cxx
+		writers/BinaryWriter.hxx
+		writers/BinaryWriter.cxx
+		cdf/reader.hxx
+		cdf/reader.cxx
+		csa/chunkdownloader.hxx
+		csa/chunkdownloader.cxx
+		csa/dataprovider.hxx
+		csa/dataprovider.cxx
+		csa/datasource.cxx
+		csa/datasource.hxx
+		csa/downloader.cxx
+		csa/downloader.hxx
+		csa/metadata.cxx
+		csa/metadata.hxx
+		csa/unpacker.hxx
+		csa/unpacker.cxx
+		omni/omnidb.hxx
+		omni/omnidb.cxx
+		omni/hroreader.hxx
+		omni/hroreader.cxx
+		omni/dataprovider.hxx
+		omni/dataprovider.cxx
+		omni/datasource.hxx
+		omni/datasource.cxx
+		omni/downloader.hxx
+		omni/downloader.cxx
+		omni/metadata.hxx
+		omni/metadata.cxx
+)
+
 target_link_libraries(cdownload
 	PRIVATE
 		${CURL_LIBRARIES}

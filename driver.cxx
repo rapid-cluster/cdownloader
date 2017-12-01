@@ -23,15 +23,12 @@
 #include "driver.hxx"
 
 #include "average.hxx"
-#include "cdfreader.hxx"
+#include "cdf/reader.hxx"
 #include "datareader.hxx"
-#include "datasource.hxx"
-#include "downloader.hxx"
+#include "dataprovider.hxx"
 #include "field.hxx"
 #include "fieldbuffer.hxx"
-#include "metadata.hxx"
 #include "parameters.hxx"
-#include "unpacker.hxx"
 
 #include "filters/baddata.hxx"
 #include "filters/blankdata.hxx"
@@ -54,8 +51,36 @@
 
 #include "config.h"
 
+#include "csa/dataprovider.hxx"
+#include "omni/dataprovider.hxx"
+#include "omni/omnidb.hxx"
 
 namespace {
+
+	const std::string CSA_PROVIDER_NAME = "CSA";
+
+	struct DataProvidersRegistrator {
+		DataProvidersRegistrator() {
+			cdownload::DataProviderRegistry::instance().registerProvider(CSA_PROVIDER_NAME,
+					std::unique_ptr<cdownload::DataProvider>(new cdownload::csa::DataProvider()));
+			cdownload::DataProviderRegistry::instance().registerProvider(cdownload::omni::OmniTableDesc::HRODatasetName,
+					std::unique_ptr<cdownload::DataProvider>(new cdownload::omni::DataProvider()));
+
+		}
+		~DataProvidersRegistrator() {
+			cdownload::DataProviderRegistry::instance().unregisterProvider(CSA_PROVIDER_NAME);
+			cdownload::DataProviderRegistry::instance().unregisterProvider(cdownload::omni::OmniTableDesc::HRODatasetName);
+		}
+	};
+
+	DataProvidersRegistrator dataProvidersRegistrator;
+
+	const cdownload::DataProvider& dataProvider(const cdownload::DatasetName& name) {
+		if (name == cdownload::omni::OmniTableDesc::HRODatasetName) {
+			return cdownload::DataProviderRegistry::instance().provider(cdownload::omni::OmniTableDesc::HRODatasetName);
+		}
+		return cdownload::DataProviderRegistry::instance().provider(CSA_PROVIDER_NAME);
+	}
 
 	void extractInfo(const std::map<cdownload::DatasetName, cdownload::DatasetChunk>& files,
 	                 std::map<cdownload::DatasetName, cdownload::CDF::Info>& info,
@@ -134,8 +159,6 @@ void cdownload::Driver::doTask()
 		chunkDuration += params_.timeInterval();
 	}
 
-	Metadata meta;
-	DataDownloader downloader;
 	// sure enough this is before Cluster II launch date
 	datetime availableStartDateTime = makeDateTime(1999, 1, 1);
 	datetime availableEndDateTime = datetime::utcNow();
@@ -146,7 +169,7 @@ void cdownload::Driver::doTask()
 		if (ProductName::isPseudoDataset(ds)) {
 			continue;
 		}
-		auto dataset = meta.dataset(ds);
+		auto dataset = dataProvider(ds).metadata()->dataset(ds);
 		BOOST_LOG_TRIVIAL(trace) << "Time range for dataset " << dataset.name() << ": [" <<
 		    dataset.minTime() << ',' << dataset.maxTime() << ']';
 		if (dataset.minTime() > availableStartDateTime) {
@@ -173,7 +196,7 @@ void cdownload::Driver::doTask()
 	std::map<DatasetName, std::shared_ptr<DataSource> > datasources;
 	std::map<DatasetName, DatasetChunk> chunks;
 	for (const auto& ds: requiredDatasets) {
-		datasources[ds] = std::shared_ptr<DataSource>(new DataSource(ds, params_, meta));
+		datasources[ds] = std::shared_ptr<DataSource>(dataProvider(ds).datasource(ds, params_));
 		chunks[ds] = datasources[ds]->nextChunk();
 	}
 

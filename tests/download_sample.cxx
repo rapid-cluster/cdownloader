@@ -1,5 +1,5 @@
-#include "../downloader.hxx"
-#include "../unpacker.hxx"
+#include "../csa/downloader.hxx"
+#include "../csa/unpacker.hxx"
 
 #include <iostream>
 #include <fstream>
@@ -30,7 +30,7 @@ int main(int argc, char** argv)
 		datasets.emplace_back("C4_CP_RAP_ISPCT_CNO");
 		datasets.emplace_back("C4_CP_RAP_ISPCT_CNO");
 	}
-	DataDownloader downloader;
+	csa::DataDownloader downloader;
 
 	for (const auto& ds: datasets) {
 		std::string outputDir = "/tmp/test-product-" + ds;
@@ -47,7 +47,7 @@ int main(int argc, char** argv)
 		}
 
 
-		DownloadedProductFile prFile {outputDir, unpackedDir, ds};
+		DownloadedChunkFile prFile = extractAndAccureDataFile(outputDir, unpackedDir, ds);
 		std::cout << "Final file name is " << prFile.fileName() << std::endl;
 		prFile.release();
 	}

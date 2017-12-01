@@ -116,42 +116,10 @@ cdownload::path cdownload::extractDataFile(const boost::filesystem::path& fileNa
 	return res;
 }
 
-namespace cdownload {
-	class DownloadedProductFile::Impl {
-	public:
-		~Impl() {
-			if (!released && !unpackedFileName.empty()) {
-				boost::filesystem::remove(unpackedFileName);
-			}
-		}
-
-		path unpackedFileName;
-		bool released = false;
-	};
-}
-
-cdownload::DownloadedProductFile::DownloadedProductFile()
-	: impl_ {new Impl()}
+cdownload::DownloadedChunkFile
+cdownload::extractAndAccureDataFile(const path& fileName, const path& dirName, const std::string& datasetId, const std::string& fileId)
 {
-}
-
-cdownload::DownloadedProductFile::DownloadedProductFile(const path& downloadedArchiveFile,
-                                              const path& unpackedDir, const std::string& datasetId)
-	: DownloadedProductFile()
-{
-	impl_->unpackedFileName = extractDataFile(downloadedArchiveFile, unpackedDir, datasetId);
-	boost::filesystem::remove(downloadedArchiveFile);
-}
-
-cdownload::DownloadedProductFile::~DownloadedProductFile() = default;
-
-
-cdownload::path cdownload::DownloadedProductFile::fileName() const
-{
-	return impl_->unpackedFileName;
-}
-
-void cdownload::DownloadedProductFile::release()
-{
-	impl_->released = true;
+	DownloadedChunkFile res = DownloadedChunkFile(extractDataFile(fileName, dirName, datasetId, fileId), true);
+	boost::filesystem::remove(fileName);
+	return res;
 }
