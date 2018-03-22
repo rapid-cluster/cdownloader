@@ -50,8 +50,17 @@ namespace cdownload {
 		void registerProvider(const std::string& name, std::unique_ptr<DataProvider>&& provider);
 		std::unique_ptr<DataProvider> unregisterProvider(const std::string& name);
 
+		using map_type = std::map<std::string, std::unique_ptr<DataProvider>>;
+
+		map_type::const_iterator begin() const {
+			return providers_.begin();
+		}
+
+		map_type::const_iterator end() const {
+			return providers_.end();
+		}
 	private:
-		std::map<std::string, std::unique_ptr<DataProvider>> providers_;
+		map_type providers_;
 	};
 }
 

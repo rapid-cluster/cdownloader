@@ -30,6 +30,7 @@ namespace omni {
 
 class Metadata: public cdownload::Metadata {
 public:
+	std::vector<DatasetName> datasets() const override;
 	cdownload::DataSetMetadata dataset(const cdownload::DatasetName & datasetName) const override;
 };
 

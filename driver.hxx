@@ -54,6 +54,9 @@ namespace csa {
 		Driver(const Parameters& params);
 		void doTask();
 
+		void listDatasets();
+		void listProducts(const DatasetName& dataset);
+
 	private:
 		void createFilters(std::vector<std::shared_ptr<RawDataFilter> >& rawDataFilters,
 		                   std::vector<std::shared_ptr<AveragedDataFilter> >& averagedDataFilters);

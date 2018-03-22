@@ -33,6 +33,8 @@
 
 #ifdef DEBUG_METADATA_ACTIONS
 	#define LOG_METADATA_ACTIONS
+	#include <iostream>
+	#include <fstream>
 #endif
 
 #ifdef LOG_METADATA_ACTIONS
@@ -54,6 +56,11 @@ std::vector<std::string> cdownload::csa::Metadata::requiredFields()
 			"DATASET.MAX_TIME_RESOLUTION",
 			"DATASET.START_DATE",
 			"DATASET.END_DATE"};
+}
+
+std::vector<cdownload::DatasetName> cdownload::csa::Metadata::datasets() const
+{
+	return datasetNames_;
 }
 
 cdownload::DataSetMetadata cdownload::csa::Metadata::dataset(const DatasetName& datasetName) const
@@ -114,11 +121,23 @@ cdownload::DataSetMetadata cdownload::csa::Metadata::downloadDatasetMetadata(con
 	names.push_back(datasetName);
 	MetadataDownloader downloader;
 	Json::Value ds = downloader.download(names, requiredFields())["data"][0];
+#ifdef DEBUG_METADATA_ACTIONS
+	{
+		std::ofstream tmp("/tmp/csa-meta-ds.json");
+		tmp << ds.toStyledString();
+	}
+#endif
 	if (ds.empty()) {
 		throw DataSetMetadataNotFound(datasetName);
 	}
 
 	Json::Value params = downloader.download(names, {"PARAMETER.PARAMETER_ID" /*, "PARAMETER.TYPE"*/})["data"];
+#ifdef DEBUG_METADATA_ACTIONS
+	{
+		std::ofstream tmp("/tmp/csa-meta-data.json");
+		tmp << params.toStyledString();
+	}
+#endif
 
 	std::pair<datetime, datetime> dates = datesRangeForDataset(ds);
 

@@ -45,6 +45,7 @@
 #include <boost/log/trivial.hpp>
 
 #include <fstream>
+#include <iostream>
 #include <algorithm>
 #include <memory>
 #include <set>
@@ -53,31 +54,31 @@
 
 #include "csa/dataprovider.hxx"
 #include "omni/dataprovider.hxx"
-#include "omni/omnidb.hxx"
 
 namespace {
 
 	const std::string CSA_PROVIDER_NAME = "CSA";
+	const std::string OMNI_PROVIDER_NAME = "OMNI";
 
 	struct DataProvidersRegistrator {
 		DataProvidersRegistrator() {
 			cdownload::DataProviderRegistry::instance().registerProvider(CSA_PROVIDER_NAME,
 					std::unique_ptr<cdownload::DataProvider>(new cdownload::csa::DataProvider()));
-			cdownload::DataProviderRegistry::instance().registerProvider(cdownload::omni::OmniTableDesc::HRODatasetName,
+			cdownload::DataProviderRegistry::instance().registerProvider(OMNI_PROVIDER_NAME,
 					std::unique_ptr<cdownload::DataProvider>(new cdownload::omni::DataProvider()));
 
 		}
 		~DataProvidersRegistrator() {
 			cdownload::DataProviderRegistry::instance().unregisterProvider(CSA_PROVIDER_NAME);
-			cdownload::DataProviderRegistry::instance().unregisterProvider(cdownload::omni::OmniTableDesc::HRODatasetName);
+			cdownload::DataProviderRegistry::instance().unregisterProvider(OMNI_PROVIDER_NAME);
 		}
 	};
 
 	DataProvidersRegistrator dataProvidersRegistrator;
 
 	const cdownload::DataProvider& dataProvider(const cdownload::DatasetName& name) {
-		if (name == cdownload::omni::OmniTableDesc::HRODatasetName) {
-			return cdownload::DataProviderRegistry::instance().provider(cdownload::omni::OmniTableDesc::HRODatasetName);
+		if (name == OMNI_PROVIDER_NAME) {
+			return cdownload::DataProviderRegistry::instance().provider(OMNI_PROVIDER_NAME);
 		}
 		return cdownload::DataProviderRegistry::instance().provider(CSA_PROVIDER_NAME);
 	}
@@ -656,4 +657,34 @@ cdownload::Driver::collectRequiredDatasets(const std::vector<Output>& outputs, c
 	std::vector<DatasetName> resVector;
 	std::copy(res.begin(), res.end(), std::back_inserter(resVector));
 	return resVector;
+}
+
+void cdownload::Driver::listDatasets()
+{
+	std::cerr << "Available datasets:" << std::endl << std::flush;
+	for (const auto& pp: DataProviderRegistry::instance()) {
+		std::unique_ptr<Metadata> meta = pp.second->metadata();
+		const auto datasets = meta->datasets();
+		for (const auto& ds: datasets) {
+			std::cout << pp.first << '.' << ds << std::endl;
+		}
+	}
+}
+
+void cdownload::Driver::listProducts(const cdownload::DatasetName& dataset)
+{
+	const auto dotPos = dataset.find('.');
+	if (dotPos == DatasetName::npos) {
+		std::cerr << "Dataset name has to contain data provider name (<data_provider>.<dataset>)" << std::endl;
+		return;
+	}
+
+	const auto providerName = dataset.substr(0, dotPos);
+	const auto dsName = dataset.substr(dotPos + 1);
+
+	const auto& provider = DataProviderRegistry::instance().provider(providerName);
+	const auto ds = provider.metadata()->dataset(dsName);
+	for (const auto& f: ds.fields()) {
+		std::cout << f << std::endl;
+	}
 }

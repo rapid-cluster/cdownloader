@@ -27,7 +27,7 @@
 #include <sstream>
 
 const std::string cdownload::omni::OmniTableDesc::HRODirectoryUrl{"ftp://spdf.gsfc.nasa.gov/pub/data/omni/high_res_omni/"};
-const cdownload::DatasetName cdownload::omni::OmniTableDesc::HRODatasetName{"OMNI_HRO"};
+const cdownload::DatasetName cdownload::omni::OmniTableDesc::HRODatasetName{"HRO"};
 
 cdownload::omni::OmniTableDesc::OmniTableDesc()
 	: fields_{highResOmniFields()}
@@ -104,7 +104,7 @@ std::vector<cdownload::FieldDesc> cdownload::omni::OmniTableDesc::highResOmniFie
 		{makeOmniHROName("y-bsn-location-gse"), -1., DT::Real, 8, 1, "BSN location, Ygse, Re F8.2, BSN = bow shock nose"},
 		{makeOmniHROName("z-bsn-location-gse"), -1., DT::Real, 8, 1, "BSN location, Zgse, Re F8.2, BSN = bow shock nose"},
 
-//               Ancilary Data
+//               Ancillary Data
 		{makeOmniHROName("index-ae"), -1., DT::SignedInt, 8, 1, "AE-index, nT I6"},
 		{makeOmniHROName("index-al"), -1., DT::SignedInt, 8, 1, "AL-index, nT I6"},
 		{makeOmniHROName("index-au"), -1., DT::SignedInt, 8, 1, "AU-index, nT I6"},

@@ -74,6 +74,8 @@ std::ostream& operator<<(std::ostream&, const DataSetMetadata&);
 class Metadata {
 	public:
 		virtual ~Metadata();
+
+		virtual std::vector<DatasetName> datasets() const = 0;
 		virtual DataSetMetadata dataset(const DatasetName& datasetName) const = 0;
 };
 

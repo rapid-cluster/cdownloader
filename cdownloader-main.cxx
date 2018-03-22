@@ -99,6 +99,8 @@ int main(int ac, char** av)
 
 	desc.add_options()
 	    ("help", "produce this help message")
+	    ("list-datasets", "Print list of available datasets")
+	    ("list-products", po::value<std::string>(), "List dataset products")
 	    ("expansion-dict",
 	    po::value<path>()->default_value(DEFAULT_EXPANSION_DICTIONARY_FILE),
 	    "Location of the expansion dictionary file")
@@ -157,7 +159,7 @@ int main(int ac, char** av)
 	outputOptions.add_options()
 	    ("output-dir", po::value<cdownload::path>()->default_value("/tmp"), "Output directory")
 	    ("work-dir", po::value<cdownload::path>()->default_value("/tmp"), "Working directory")
-	    ("output", po::value<std::vector<cdownload::path> >()->composing()->required(), "List of files with output descriptions")
+	    ("output", po::value<std::vector<cdownload::path> >()->composing(), "List of files with output descriptions")
 	    ("write-epoch-column", po::value<bool>()->implicit_value(true), "Add \"Epoch\" column to the outputs, containing CDF_EPOCH value")
 	;
 
@@ -184,92 +186,105 @@ int main(int ac, char** av)
 	parameters.setDownloadMissingData(vm["download-missing"].as<bool>());
 	parameters.spacecraftName(vm["spacecraft"].as<std::string>());
 
-	std::vector<cdownload::ProductName> qualityFilterProducts;
-	std::vector<int> qualityFilterMinQualities;
+	if (!vm.count("list-datasets") && !vm.count("list-products")) {
+		std::vector<cdownload::ProductName> qualityFilterProducts;
+		std::vector<int> qualityFilterMinQualities;
 
-	if (vm.count("quality-product-name")) {
-		qualityFilterProducts = vm["quality-product-name"].as<std::vector<cdownload::ProductName>>();
-	}
+		if (vm.count("quality-product-name")) {
+			qualityFilterProducts = vm["quality-product-name"].as<std::vector<cdownload::ProductName>>();
+		}
 
-	if (vm.count("quality-min-value")) {
-		qualityFilterMinQualities = vm["quality-min-value"].as<std::vector<int>>();
-	}
+		if (vm.count("quality-min-value")) {
+			qualityFilterMinQualities = vm["quality-min-value"].as<std::vector<int>>();
+		}
 
-	if (qualityFilterProducts.size() != qualityFilterMinQualities.size()) {
-		std::cerr << "Number of quality product names (" << qualityFilterProducts.size()
-			<< ") is not equal to that of quality levels (" << qualityFilterMinQualities.size()
-			<< ")" << std::endl;
-		return 2;
-	}
-
-	for (std::size_t i = 0; i < qualityFilterProducts.size(); ++i) {
-		parameters.addQualityFilter(qualityFilterProducts[i], qualityFilterMinQualities[i]);
-	}
-
-	if (vm.count("density-source") != vm.count("min-density-value")) {
-		std::cerr << "Density source and its minimal value must be specified together" << std::endl;
-		return 2;
-	}
-
-	if (vm.count("density-source")) {
-		std::string densitySource = vm["density-source"].as<std::string>();
-		if ((densitySource != "CODIF") && (densitySource != "HIA")) {
-			std::cerr << "Only 'CODIF' and 'HIA' are valid velues for 'density-source' parameter" << std::endl;
+		if (qualityFilterProducts.size() != qualityFilterMinQualities.size()) {
+			std::cerr << "Number of quality product names (" << qualityFilterProducts.size()
+				<< ") is not equal to that of quality levels (" << qualityFilterMinQualities.size()
+				<< ")" << std::endl;
 			return 2;
 		}
-		parameters.addDensityFilter(
-			densitySource == "CODIF" ? cdownload::DensitySource::CODIF : cdownload::DensitySource::HIA,
-			vm["min-density-value"].as<double>());
-	}
 
-	parameters.plasmaSheetFilter(vm["plasma-sheet"].as<bool>());
-	parameters.plasmaSheetMinR(vm["plasma-sheet-min-r"].as<double>());
+		for (std::size_t i = 0; i < qualityFilterProducts.size(); ++i) {
+			parameters.addQualityFilter(qualityFilterProducts[i], qualityFilterMinQualities[i]);
+		}
 
-	if (vm.count("night-side")) {
-		parameters.onlyNightSide(vm["night-side"].as<bool>());
-	}
-
-	if (vm.count("allow-blanks")) {
-		parameters.allowBlanks(vm["allow-blanks"].as<bool>());
-	}
-
-	if (vm.count("valid-time-ranges")) {
-		parameters.timeRangesFileName(vm["valid-time-ranges"].as<path>());
-	}
-
-	if (vm.count("no-averaging") && vm["no-averaging"].as<bool>()) {
-		if (vm.count("cell-size")) {
-			std::cerr << "Options 'cell-size' and 'no-averaging' are mutually exclusive" << std::endl;
+		if (vm.count("density-source") != vm.count("min-density-value")) {
+			std::cerr << "Density source and its minimal value must be specified together" << std::endl;
 			return 2;
 		}
-		parameters.disableAveraging(true);
-	}
 
-	if (vm.count("write-epoch-column")) {
-		parameters.writeEpoch(vm["write-epoch-column"].as<bool>());
-	}
+		if (vm.count("density-source")) {
+			std::string densitySource = vm["density-source"].as<std::string>();
+			if ((densitySource != "CODIF") && (densitySource != "HIA")) {
+				std::cerr << "Only 'CODIF' and 'HIA' are valid velues for 'density-source' parameter" << std::endl;
+				return 2;
+			}
+			parameters.addDensityFilter(
+				densitySource == "CODIF" ? cdownload::DensitySource::CODIF : cdownload::DensitySource::HIA,
+				vm["min-density-value"].as<double>());
+		}
 
-	try {
-		assureDirectoryExistsAndIsWritable(parameters.outputDir(), "Output");
-		assureDirectoryExistsAndIsWritable(parameters.workDir(), "Working");
-	} catch (std::exception& ex) {
-		std::cerr << ex.what() << std::endl;
-		return 2;
-	}
+		parameters.plasmaSheetFilter(vm["plasma-sheet"].as<bool>());
+		parameters.plasmaSheetMinR(vm["plasma-sheet-min-r"].as<double>());
 
-	if (!vm.count("output")) {
-		std::cerr << "No outputs specified. Exiting." << std::endl;
-		return 2;
-	}
+		if (vm.count("night-side")) {
+			parameters.onlyNightSide(vm["night-side"].as<bool>());
+		}
 
-	std::vector<path> outputDefinitions = vm["output"].as<std::vector<path> >();
+		if (vm.count("allow-blanks")) {
+			parameters.allowBlanks(vm["allow-blanks"].as<bool>());
+		}
 
-	for (path p: outputDefinitions) {
+		if (vm.count("valid-time-ranges")) {
+			parameters.timeRangesFileName(vm["valid-time-ranges"].as<path>());
+		}
+
+		if (vm.count("no-averaging") && vm["no-averaging"].as<bool>()) {
+			if (vm.count("cell-size")) {
+				std::cerr << "Options 'cell-size' and 'no-averaging' are mutually exclusive" << std::endl;
+				return 2;
+			}
+			parameters.disableAveraging(true);
+		}
+
+		if (vm.count("write-epoch-column")) {
+			parameters.writeEpoch(vm["write-epoch-column"].as<bool>());
+		}
+
 		try {
-			parameters.addOuput(cdownload::parseOutputDefinitionFile(p));
-		} catch (std::exception& e) {
-			std::cerr << "Error adding output defined in file " << p << ": " << e.what() << std::endl;
+			assureDirectoryExistsAndIsWritable(parameters.outputDir(), "Output");
+			assureDirectoryExistsAndIsWritable(parameters.workDir(), "Working");
+		} catch (std::exception& ex) {
+			std::cerr << ex.what() << std::endl;
 			return 2;
+		}
+
+		if (!vm.count("output")) {
+			std::cerr << "No outputs specified. Exiting." << std::endl;
+			return 2;
+		}
+
+		std::vector<path> outputDefinitions = vm["output"].as<std::vector<path> >();
+
+		for (path p: outputDefinitions) {
+			try {
+				parameters.addOuput(cdownload::parseOutputDefinitionFile(p));
+			} catch (std::exception& e) {
+				std::cerr << "Error adding output defined in file " << p << ": " << e.what() << std::endl;
+				return 2;
+			}
+		}
+
+		parameters.setTimeRange(vm["start"].as<cdownload::datetime>(), vm["end"].as<cdownload::datetime>());
+		if (vm.count("cell-size")) {
+			parameters.setTimeInterval(vm["cell-size"].as<cdownload::timeduration>());
+		} else {
+			if (!vm.count("no-averaging") || !vm["no-averaging"].as<bool>()) {
+				std::cerr << "Cell size may not be omitted in averaging mode" << std::endl;
+				return 2;
+			}
+			parameters.setTimeInterval(cdownload::timeduration(0, 1, 0, 0.));
 		}
 	}
 
@@ -304,18 +319,15 @@ int main(int ac, char** av)
 	}
 
 	parameters.setExpansionDictFile(vm["expansion-dict"].as<path>());
-	parameters.setTimeRange(vm["start"].as<cdownload::datetime>(), vm["end"].as<cdownload::datetime>());
-	if (vm.count("cell-size")) {
-		parameters.setTimeInterval(vm["cell-size"].as<cdownload::timeduration>());
-	} else {
-		if (!vm.count("no-averaging") || !vm["no-averaging"].as<bool>()) {
-			std::cerr << "Cell size may not be omitted in averaging mode" << std::endl;
-			return 2;
-		}
-		parameters.setTimeInterval(cdownload::timeduration(0, 1, 0, 0.));
-	}
 	cdownload::Driver driver {parameters};
-	driver.doTask();
+
+	if (vm.count("list-datasets")) {
+		driver.listDatasets();
+	} else if (vm.count("list-products")) {
+		driver.listProducts(vm["list-products"].as<std::string>());
+	} else {
+		driver.doTask();
+	}
 
 	return 0;
 }

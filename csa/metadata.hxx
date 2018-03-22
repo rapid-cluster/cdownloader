@@ -39,6 +39,7 @@ namespace csa {
 	public:
 		Metadata();
 
+		std::vector<DatasetName> datasets() const override;
 		DataSetMetadata dataset(const DatasetName& datasetName) const override;
 
 	private:

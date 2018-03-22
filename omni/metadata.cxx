@@ -27,6 +27,11 @@
 
 #include <algorithm>
 
+std::vector<cdownload::DatasetName> cdownload::omni::Metadata::datasets() const
+{
+	return {OmniTableDesc::HRODatasetName};
+}
+
 cdownload::DataSetMetadata cdownload::omni::Metadata::dataset(const cdownload::DatasetName& datasetName) const
 {
 
