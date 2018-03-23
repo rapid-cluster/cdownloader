@@ -183,70 +183,121 @@ namespace {
 
 cdownload::Output cdownload::parseOutputDefinitionFile(const path& filePath)
 {
-	/* The file format is extremely simple "key=value" format with three allowed keys
+	/* The file format is extremely simple "key=value" format with three possible keys
 	 * allowed: "name", "format", and "products"
 	 * Format may be one of "ASCII", "BINARY", or "CDF"
 	 * Lines that start with '#' are comments
 	 * Products list is comma or semicolon separated list of strings
+	 * If a line does not contain '=' character, it is a continuation of the previous line
 	 */
 	std::ifstream inp(filePath.c_str());
-	std::string line;
 	std::string name;
 	std::string formatString;
 	std::vector<std::string> productsList;
-	std::size_t lineNo = 0; // just for error messages
-	while (inp && (name.empty() || formatString.empty() || productsList.empty())) {
-		std::getline(inp, line);
-		++lineNo;
-		boost::algorithm::trim_all(line);
-		if (line.empty() || line[0] == '#') {
-			continue;
-		}
-		removeTrailingComment(line);
-		std::vector<std::string> parts;
-		boost::algorithm::split(parts, line, boost::is_any_of("="), boost::token_compress_on);
-		if (parts.size() != 2) {
-			signalParsingError(filePath, lineNo, "each line has to follow 'key=value' scheme");
+
+	class LineReader {
+	public:
+		LineReader(std::istream& is)
+			: is_{is}
+			, curLine_{}
+			, lineNo_{0}
+		{
 		}
 
-		if (parts[0].empty()) {
-			signalParsingError(filePath, lineNo, "key may not be empty");
-		}
-
-		if (parts[1].empty()) {
-			signalParsingError(filePath, lineNo, "value may not be empty");
-		}
-
-		if (parts[0] == "name") {
-			name = parts[1];
-			if (name.empty()) {
-				signalParsingError(filePath, lineNo, "'name' may not be empty");
+		std::pair<std::string,std::string> nextLine()
+		{
+			while (is_) {
+				std::string newLine;
+				std::getline(is_, newLine);
+				++lineNo_;
+				boost::algorithm::trim_all(newLine);
+				if (newLine.empty() || newLine[0] == '#') {
+					continue;
+				}
+				removeTrailingComment(newLine);
+				std::vector<std::string> parts;
+				boost::algorithm::split(parts, newLine, boost::is_any_of("="), boost::token_compress_on);
+				if (parts.size() == 1 && !curLine_.second.empty()) { // this is continuation of the previous line
+					curLine_.second += newLine;
+					continue;
+				}
+				if (parts.size() == 2) {
+					if (curLine_.second.empty()) {
+						curLine_ = {parts[0], parts[1]};
+						continue;
+					} else {
+						const auto res = curLine_;
+						curLine_ = {parts[0], parts[1]};
+						return res;
+					}
+				}
+				if (parts.size() > 2) {
+					throw std::runtime_error("each line has to follow 'key=value' scheme");
+				}
 			}
-		} else if (parts[0] == "format") {
-			std::string formatStringCI = boost::algorithm::to_upper_copy(parts[1], std::locale::classic());
-			if ((formatStringCI == "ASCII") ||
-				(formatStringCI == "BINARY") ||
-				(formatStringCI == "CDF")) {
-				formatString = formatStringCI;
+			const auto res = curLine_;
+			curLine_ = {};
+			return res;
+		}
+
+		std::size_t lineNo() const {
+			return lineNo_;
+		}
+
+	private:
+		std::istream& is_;
+		std::pair<std::string,std::string> curLine_;
+		std::size_t lineNo_;
+	};
+
+	LineReader reader(inp);
+	try {
+		for(;;) {
+			const auto rec = reader.nextLine();
+			if (rec.first.empty() && rec.second.empty()) {
+				break;
+			}
+			if (rec.first.empty()) {
+				signalParsingError(filePath, reader.lineNo(), "key may not be empty");
+			}
+			if (rec.second.empty()) {
+				signalParsingError(filePath, reader.lineNo(), "value may not be empty");
+			}
+
+			if (rec.first == "name") {
+				name = rec.second;
+				if (name.empty()) {
+					signalParsingError(filePath, reader.lineNo(), "'name' may not be empty");
+				}
+			} else if (rec.first == "format") {
+				std::string formatStringCI = boost::algorithm::to_upper_copy(rec.second, std::locale::classic());
+				if ((formatStringCI == "ASCII") ||
+					(formatStringCI == "BINARY") ||
+					(formatStringCI == "CDF")) {
+					formatString = formatStringCI;
+				} else {
+					signalParsingError(filePath, reader.lineNo(), "Format name '" + rec.second + "' is not valid");
+				}
+			} else if (rec.first == "products") {
+				boost::algorithm::split(productsList, rec.second, boost::is_any_of(",;"), boost::token_compress_on);
+				if (productsList.empty()) {
+					signalParsingError(filePath, reader.lineNo(), "'products' may not be empty");
+				}
 			} else {
-				signalParsingError(filePath, lineNo, "Format name '" + parts[1] + "' is not valid");
+				signalParsingError(filePath, reader.lineNo(), "unknown key");
 			}
-		} else if (parts[0] == "products") {
-			boost::algorithm::split(productsList, parts[1], boost::is_any_of(",;"), boost::token_compress_on);
-			if (productsList.empty()) {
-				signalParsingError(filePath, lineNo, "'products' may not be empty");
-			}
-		} else {
-			signalParsingError(filePath, lineNo, "unknown key");
+
 		}
+	} catch (std::runtime_error& e) {
+		signalParsingError(filePath, reader.lineNo(), e.what());
 	}
 
 	if (name.empty()) {
-		signalParsingError(filePath, lineNo, "'name' may not be undefined");
+		signalParsingError(filePath, reader.lineNo(), "'name' may not be undefined");
 	}
 
 	if (productsList.empty()) {
-		signalParsingError(filePath, lineNo, "'products' may not be undefined");
+		signalParsingError(filePath, reader.lineNo(), "'products' may not be undefined");
 	}
 
 	std::vector<ProductName> products;
