@@ -505,8 +505,8 @@ void cdownload::Driver::createFilters(std::vector<std::shared_ptr<RawDataFilter>
 
 	if (!params_.disableAveraging()) {
 		for (const auto& dfp: params_.densityyFilters()) {
-			const ProductName product = dfp.source == DensitySource::CODIF ?
-			                            ProductName("density", params_.spacecraftName(), "CP_CIS-CODIF_HS_H1_MOMENTS") : ProductName("density", params_.spacecraftName(), "CP_CIS-HIA_ONBOARD_MOMENTS");
+			const ProductName product = ProductName(dfp.source == DensitySource::CODIF ? "CP_CIS-CODIF_HS_H1_MOMENTS" : "CP_CIS-HIA_ONBOARD_MOMENTS",
+			                                        params_.spacecraftName(), "density");
 			averagedDataFilters.emplace_back(new Filters::H1DensityFilter(product, dfp.minDensity));
 		}
 
